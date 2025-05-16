@@ -1,0 +1,16 @@
+{
+  "name": "PokéGacha",
+  "short_name": "PokéGacha",
+  "description": "Gacha Pokémon pour le web",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f44336",
+  "icons": [
+    {
+      "src": "images/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
