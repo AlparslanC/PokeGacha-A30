@@ -222,6 +222,72 @@ main {
   background-color: gold;
 }
 
+.pokemon-type {
+  display: inline-block;
+  padding: 4px 8px;
+  margin: 2px;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 0.8rem;
+  text-transform: capitalize;
+}
+
+/* Types de Pokémon */
+.pokemon-type.fire {
+  background-color: #f08030;
+}
+.pokemon-type.water {
+  background-color: #6890f0;
+}
+.pokemon-type.grass {
+  background-color: #78c850;
+}
+.pokemon-type.electric {
+  background-color: #f8d030;
+}
+.pokemon-type.ice {
+  background-color: #98d8d8;
+}
+.pokemon-type.fighting {
+  background-color: #c03028;
+}
+.pokemon-type.poison {
+  background-color: #a040a0;
+}
+.pokemon-type.ground {
+  background-color: #e0c068;
+}
+.pokemon-type.flying {
+  background-color: #a890f0;
+}
+.pokemon-type.psychic {
+  background-color: #f85888;
+}
+.pokemon-type.bug {
+  background-color: #a8b820;
+}
+.pokemon-type.rock {
+  background-color: #b8a038;
+}
+.pokemon-type.ghost {
+  background-color: #705898;
+}
+.pokemon-type.dragon {
+  background-color: #7038f8;
+}
+.pokemon-type.dark {
+  background-color: #705848;
+}
+.pokemon-type.steel {
+  background-color: #b8b8d0;
+}
+.pokemon-type.fairy {
+  background-color: #ee99ac;
+}
+.pokemon-type.normal {
+  background-color: #a8a878;
+}
+
 /* Photos tab styling */
 .photo-container {
   display: flex;
@@ -491,31 +557,6 @@ main {
 
 .mb-1 {
   margin-bottom: 1rem;
-}
-
-/* Rarity colors */
-.common {
-  background-color: #aaaaaa;
-}
-
-.uncommon {
-  background-color: #4caf50;
-}
-
-.rare {
-  background-color: #2196f3;
-}
-
-.epic {
-  background-color: #9c27b0;
-}
-
-.legendary {
-  background-color: #ff9800;
-}
-
-.mythical {
-  background-color: #e91e63;
 }
 
 /* Styles pour la barre de progression d'œuf */

@@ -6,8 +6,8 @@
     <title>PokéGacha</title>
     <link rel="stylesheet" href="css/style.css" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="apple-touch-icon" href="images/icons/icon-192x192.png" />
-    <link rel="icon" href="images/icons/icon-192x192.png" />
+    <link rel="apple-touch-icon" href="images/icon-192x192.png" />
+    <link rel="icon" href="images/icon-192x192.png" />
     <meta name="theme-color" content="#f44336" />
   </head>
   <body>
@@ -82,16 +82,28 @@
 
     <div id="notification" class="notification"></div>
 
-    <!-- Chargement des scripts JS -->
-    <script type="module" src="js/utils.js"></script>
-    <script type="module" src="js/app-state.js"></script>
-    <script type="module" src="js/storage.js"></script>
-    <script type="module" src="js/egg-utils.js"></script>
-    <script type="module" src="js/pokemon-service.js"></script>
-    <script type="module" src="js/photo-controller.js"></script>
-    <script type="module" src="js/ui.js"></script>
-    <script type="module" src="js/events.js"></script>
-    <script type="module" src="js/service-worker.js"></script>
-    <script type="module" src="js/main.js"></script>
+    <!-- Models -->
+    <script src="js/models/AppStateModel.js"></script>
+    <script src="js/models/PokemonModel.js"></script>
+    <script src="js/models/EggModel.js"></script>
+    <script src="js/models/StorageModel.js"></script>
+
+    <!-- Views -->
+    <script src="js/views/BaseView.js"></script>
+    <script src="js/views/PokemonCollectionView.js"></script>
+    <script src="js/views/EggCollectionView.js"></script>
+    <script src="js/views/PhotoCollectionView.js"></script>
+    <script src="js/views/UIView.js"></script>
+
+    <!-- Presenters -->
+    <script src="js/presenters/GameLogicPresenter.js"></script>
+    <script src="js/presenters/PhotoPresenter.js"></script>
+    <script src="js/presenters/MainPresenter.js"></script>
+
+    <!-- Services -->
+    <script src="js/services/ServiceWorkerService.js"></script>
+
+    <!-- Application -->
+    <script src="js/Application.js"></script>
   </body>
 </html>
