@@ -52,6 +52,11 @@ class MainPresenter {
     const savedData = this.storageModel.load();
     if (savedData) {
       this.appStateModel.hydrate(savedData);
+      // After loading, ensure all Pokemon have unique IDs
+      const count = this.appStateModel.regenerateUniqueIds();
+      console.log(`Regenerated unique IDs for ${count} Pokemon`);
+      // Save the updated data
+      this.saveData();
     }
   }
 
@@ -65,8 +70,68 @@ class MainPresenter {
       this.showPokemonDetails(pokemon);
     });
 
-    this.eggCollectionView.setOnIncubateClick((index) => {
-      this.gameLogicPresenter.incubateEgg(index);
+    this.pokemonCollectionView.setOnEvolutionSelect(async (selectedIds) => {
+      try {
+        this.uiView.showLoader();
+        
+        // Get selected Pokemon
+        const pokemons = this.appStateModel.getPokemons();
+        const selectedPokemons = pokemons.filter(p => selectedIds.includes(p.uniqueId));
+        
+        if (selectedPokemons.length < 2) {
+          throw new Error("Pas assez de Pokémon sélectionnés pour l'évolution");
+        }
+
+        // Verify all Pokemon are the same species
+        const firstPokemon = selectedPokemons[0];
+        if (!selectedPokemons.every(p => p.name === firstPokemon.name)) {
+          throw new Error("Les Pokémon sélectionnés doivent être de la même espèce");
+        }
+
+        // Get evolution data
+        const evolvedPokemon = await this.pokemonModel.getNextEvolution(firstPokemon);
+        
+        if (!evolvedPokemon) {
+          throw new Error("Ce Pokémon ne peut pas évoluer davantage");
+        }
+
+        // Remove selected Pokemon
+        selectedIds.forEach(uniqueId => {
+          this.appStateModel.removePokemon(uniqueId);
+        });
+
+        // Add evolved Pokemon
+        this.appStateModel.addPokemon(evolvedPokemon);
+
+        // Save state before showing modal
+        this.saveData();
+
+        // Show evolution success modal
+        this.uiView.showRewardModal(
+          "Évolution réussie !",
+          evolvedPokemon.sprites.front_default,
+          `Félicitations ! Vos ${selectedPokemons.length} ${this.capitalizeFirstLetter(firstPokemon.name)} ont évolué en ${this.capitalizeFirstLetter(evolvedPokemon.name)} !`
+        );
+
+        // Reload page after a short delay
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+
+      } catch (error) {
+        this.uiView.showNotification(error.message);
+      } finally {
+        this.uiView.hideLoader();
+      }
+    });
+
+    this.eggCollectionView.setOnHatchClick((index) => {
+      this.gameLogicPresenter.hatchEgg(index);
+    });
+
+    this.eggCollectionView.setOnShakeModeClick((index) => {
+      const isActive = this.gameLogicPresenter.toggleShakeMode(index);
+      return isActive;
     });
 
     this.photoCollectionView.setOnPhotoClick((photo) => {
@@ -82,6 +147,11 @@ class MainPresenter {
         this.gameLogicPresenter.openPokeball();
       });
     }
+
+    // Sauvegarder les données avant de quitter/recharger la page
+    window.addEventListener("beforeunload", () => {
+      this.saveData();
+    });
 
     // Gestion des onglets
     this.setupTabEvents();
@@ -109,8 +179,13 @@ class MainPresenter {
         // Gérer la caméra pour l'onglet photos
         if (tabName === "photos") {
           this.photoPresenter.initCamera();
+          this.gameLogicPresenter.stopShakeDetection();
+        } else if (tabName === "eggs") {
+          this.photoPresenter.stopCamera();
+          this.gameLogicPresenter.startShakeDetection();
         } else {
           this.photoPresenter.stopCamera();
+          this.gameLogicPresenter.stopShakeDetection();
         }
       });
     });
@@ -141,6 +216,11 @@ class MainPresenter {
       this.updateEggProgress();
     }, 1000);
 
+    // Sauvegarder les données périodiquement (toutes les 30 secondes)
+    setInterval(() => {
+      this.saveData();
+    }, 30000);
+
     // Ajouter des Pokéballs périodiquement (1 par heure)
     setInterval(() => {
       if (this.appStateModel.getUserPokeballs() < 10) {
@@ -157,12 +237,39 @@ class MainPresenter {
       this.eggModel.calculateProgress(egg)
     );
 
-    this.eggCollectionView.updateProgress(eggs, progressData);
-
-    // Vérifier si des œufs sont prêts à éclore
+    // Mettre à jour uniquement la barre de progression et le texte
     eggs.forEach((egg, index) => {
-      if (progressData[index].isReady && !egg.hatched) {
-        this.gameLogicPresenter.hatchEgg(index);
+      const eggCard = document.querySelector(`.egg-card[data-index="${index}"]`);
+      if (!eggCard) return;
+
+      const progressBar = eggCard.querySelector(".egg-progress-bar");
+      const progressText = eggCard.querySelector(".egg-progress-text");
+      const progress = progressData[index];
+
+      if (progressBar) {
+        progressBar.style.width = `${progress.progress}%`;
+      }
+
+      if (progressText) {
+        progressText.textContent = `${Math.floor(progress.progress)}%`;
+      }
+
+      // Ne mettre à jour le bouton que si l'œuf est prêt
+      if (progress.isReady) {
+        const actionsDiv = eggCard.querySelector(".egg-actions");
+        if (actionsDiv) {
+          const currentButton = actionsDiv.querySelector("button");
+          if (currentButton && !currentButton.classList.contains("hatch-btn")) {
+            actionsDiv.innerHTML = '<button class="hatch-btn">Faire éclore</button>';
+            const newHatchBtn = actionsDiv.querySelector(".hatch-btn");
+            this.eggCollectionView.bindEvent(newHatchBtn, "click", (e) => {
+              e.stopPropagation();
+              if (this.eggCollectionView.onHatchClick) {
+                this.eggCollectionView.onHatchClick(index);
+              }
+            });
+          }
+        }
       }
     });
   }
@@ -200,11 +307,30 @@ class MainPresenter {
 
   async showPokemonDetails(pokemon) {
     try {
+      if (!pokemon) {
+        throw new Error("Données du Pokémon manquantes");
+      }
+
       this.uiView.showLoader();
 
-      const speciesData = await this.pokemonModel.fetchPokemonSpecies(
-        pokemon.species.url
-      );
+      let speciesData;
+      try {
+        if (!pokemon.species?.url) {
+          // Fallback si l'URL de l'espèce est manquante
+          const speciesUrl = `https://pokeapi.co/api/v2/pokemon-species/${pokemon.id || pokemon.name}/`;
+          speciesData = await this.pokemonModel.fetchPokemonSpecies(speciesUrl);
+        } else {
+          speciesData = await this.pokemonModel.fetchPokemonSpecies(
+            pokemon.species.url
+          );
+        }
+      } catch (error) {
+        console.warn("Impossible de récupérer les détails de l'espèce:", error);
+        // On continue avec les informations de base
+        speciesData = {
+          flavor_text_entries: []
+        };
+      }
 
       // Trouver une description en français
       const frDescription = speciesData.flavor_text_entries.find(
@@ -218,59 +344,48 @@ class MainPresenter {
       const content = `
         <p class="pokemon-description">${description}</p>
         <div class="pokemon-stats">
-          <p><strong>Taille:</strong> ${pokemon.height / 10} m</p>
-          <p><strong>Poids:</strong> ${pokemon.weight / 10} kg</p>
-          <p><strong>Types:</strong> ${pokemon.types
-            .map((t) => this.capitalizeFirstLetter(t.type.name))
-            .join(", ")}</p>
+          <p><strong>Types:</strong> ${(pokemon.types || [])
+            .map((t) => this.capitalizeFirstLetter(t.type?.name || "inconnu"))
+            .join(", ") || "Type inconnu"}</p>
         </div>
         <div class="pokemon-abilities">
-          <p><strong>Capacités:</strong> ${pokemon.abilities
-            .map((a) => this.capitalizeFirstLetter(a.ability.name))
-            .join(", ")}</p>
-        </div>
-        <div class="pokemon-rarity-info">
-          <p><strong>Rareté:</strong> ${this.capitalizeFirstLetter(
-            pokemon.rarity || "common"
-          )}</p>
+          <p><strong>Capacités:</strong> ${(pokemon.abilities || [])
+            .map((a) => this.capitalizeFirstLetter(a.ability?.name || "inconnue"))
+            .join(", ") || "Capacités inconnues"}</p>
         </div>
       `;
 
+      this.uiView.hideLoader();
       this.uiView.updateModalContent(
-        this.capitalizeFirstLetter(pokemon.name),
-        pokemon.sprites.front_default,
+        this.capitalizeFirstLetter(pokemon.name || "Pokémon inconnu"),
+        pokemon.sprites?.front_default || "",
         content
       );
-
-      this.uiView.hideLoader();
       this.uiView.showModal();
     } catch (error) {
       console.error(
-        "Erreur lors de la récupération des détails de l'espèce:",
+        "Erreur lors de l'affichage des détails du Pokémon:",
         error
       );
 
-      // Afficher des informations de base si l'API ne répond pas
-      const basicContent = `
-        <div class="pokemon-stats">
-          <p><strong>Taille:</strong> ${pokemon.height / 10} m</p>
-          <p><strong>Poids:</strong> ${pokemon.weight / 10} kg</p>
-          <p><strong>Types:</strong> ${pokemon.types
-            .map((t) => this.capitalizeFirstLetter(t.type.name))
-            .join(", ")}</p>
-          <p><strong>Rareté:</strong> ${this.capitalizeFirstLetter(
-            pokemon.rarity || "common"
-          )}</p>
+      // Afficher un message d'erreur convivial à l'utilisateur
+      const errorContent = `
+        <div class="error-message">
+          <p>Désolé, une erreur est survenue lors du chargement des détails.</p>
+          <div class="pokemon-stats">
+            <p><strong>Types:</strong> ${(pokemon?.types || [])
+              .map((t) => this.capitalizeFirstLetter(t.type?.name || "inconnu"))
+              .join(", ") || "Type inconnu"}</p>
+          </div>
         </div>
       `;
 
-      this.uiView.updateModalContent(
-        this.capitalizeFirstLetter(pokemon.name),
-        pokemon.sprites.front_default,
-        basicContent
-      );
-
       this.uiView.hideLoader();
+      this.uiView.updateModalContent(
+        this.capitalizeFirstLetter(pokemon?.name || "Pokémon inconnu"),
+        pokemon?.sprites?.front_default || "",
+        errorContent
+      );
       this.uiView.showModal();
     }
   }
@@ -293,33 +408,51 @@ class MainPresenter {
 
   // Observer pattern - réagir aux changements d'état
   update(changeType, data) {
+    // Fonction pour sauvegarder avec une petite attente
+    const saveWithDelay = () => {
+      setTimeout(() => {
+        this.saveData();
+        // Vérifier que la sauvegarde a bien été effectuée
+        const savedData = this.storageModel.load();
+        if (savedData) {
+          const expectedLength = this.appStateModel.getPokemons().length;
+          const actualLength = savedData.pokemons.length;
+          if (expectedLength !== actualLength) {
+            console.warn(`Problème de sauvegarde détecté: ${expectedLength} pokémons attendus, ${actualLength} sauvegardés`);
+            // Réessayer la sauvegarde
+            this.saveData();
+          }
+        }
+      }, 100);
+    };
+
     switch (changeType) {
       case "POKEMON_ADDED":
         this.renderPokemonCollection();
         this.renderCounters();
-        this.saveData();
+        saveWithDelay();
         break;
       case "EGG_ADDED":
         this.renderEggCollection();
         this.renderCounters();
-        this.saveData();
+        saveWithDelay();
         break;
       case "EGG_REMOVED":
         this.renderEggCollection();
         this.renderCounters();
-        this.saveData();
+        saveWithDelay();
         break;
       case "EGG_UPDATED":
-        this.renderEggCollection();
-        this.saveData();
+        this.updateEggProgress();
+        saveWithDelay();
         break;
       case "PHOTO_ADDED":
         this.renderPhotoCollection();
-        this.saveData();
+        saveWithDelay();
         break;
       case "POKEBALLS_UPDATED":
         this.renderCounters();
-        this.saveData();
+        saveWithDelay();
         break;
       case "STATE_HYDRATED":
         this.renderAll();

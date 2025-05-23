@@ -47,7 +47,10 @@
       </div>
 
       <div id="collection" class="tab-content">
-        <div id="pokemon-list" class="pokemon-collection"></div>
+        <div class="collection-container">
+          <div id="evolution-controls-container"></div>
+          <div id="pokemon-list" class="pokemon-collection"></div>
+        </div>
       </div>
 
       <div id="eggs" class="tab-content">
@@ -56,12 +59,32 @@
 
       <div id="photos" class="tab-content">
         <div class="photo-container">
-          <video id="camera-view" autoplay playsinline></video>
-          <canvas id="camera-canvas"></canvas>
-          <div id="photo-pokemon-selection" class="pokemon-selection"></div>
+          <div class="camera-controls">
+            <button id="switch-camera" class="control-button">
+              <i class="fas fa-sync"></i>
+              Changer de caméra
+            </button>
+          </div>
+          <div class="camera-wrapper">
+            <video id="camera-view" autoplay playsinline></video>
+            <canvas id="camera-canvas"></canvas>
+          </div>
           <button id="take-photo" class="action-button">
             Prendre une photo
           </button>
+          <div class="pokemon-position-controls">
+            <button id="move-up" class="control-button" title="Monter le Pokémon">↑</button>
+            <div class="horizontal-controls">
+              <button id="move-left" class="control-button" title="Déplacer à gauche">←</button>
+              <button id="move-right" class="control-button" title="Déplacer à droite">→</button>
+            </div>
+            <button id="move-down" class="control-button" title="Descendre le Pokémon">↓</button>
+            <div class="size-controls">
+              <button id="size-down" class="control-button" title="Réduire le Pokémon">-</button>
+              <button id="size-up" class="control-button" title="Agrandir le Pokémon">+</button>
+            </div>
+          </div>
+          <div id="photo-pokemon-selection" class="pokemon-selection"></div>
         </div>
         <div id="photos-list" class="photos-gallery"></div>
       </div>

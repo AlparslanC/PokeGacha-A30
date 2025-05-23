@@ -19,6 +19,7 @@ class UIView extends BaseView {
       notification: document.getElementById("notification"),
       photoPokemonSelection: document.getElementById("photo-pokemon-selection"),
       photoContainer: document.querySelector(".photo-container"),
+      rewardModal: document.getElementById("reward-modal"),
     };
   }
 
@@ -49,10 +50,10 @@ class UIView extends BaseView {
   showNotification(message) {
     if (this.elements.notification) {
       this.elements.notification.textContent = message;
-      this.elements.notification.classList.add("active");
+      this.elements.notification.classList.add("show");
 
       setTimeout(() => {
-        this.elements.notification.classList.remove("active");
+        this.elements.notification.classList.remove("show");
       }, 3000);
     }
   }
@@ -87,6 +88,39 @@ class UIView extends BaseView {
       setTimeout(() => {
         this.elements.pokeball.classList.remove("open");
       }, 1000);
+    }
+  }
+
+  showRewardModal(title, imageSrc, message) {
+    if (!this.elements.rewardModal) {
+      // Créer la modal si elle n'existe pas
+      const modal = document.createElement("div");
+      modal.id = "reward-modal";
+      modal.className = "reward-modal";
+      modal.innerHTML = `
+        <div class="reward-content">
+          <h2>${title}</h2>
+          <img src="${imageSrc}" alt="${title}">
+          <p>${message}</p>
+          <button onclick="this.closest('.reward-modal').classList.remove('active')">Fermer</button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      this.elements.rewardModal = modal;
+    } else {
+      // Mettre à jour le contenu de la modal existante
+      const content = this.elements.rewardModal.querySelector(".reward-content");
+      content.querySelector("h2").textContent = title;
+      content.querySelector("img").src = imageSrc;
+      content.querySelector("p").textContent = message;
+    }
+
+    this.elements.rewardModal.classList.add("active");
+  }
+
+  hideRewardModal() {
+    if (this.elements.rewardModal) {
+      this.elements.rewardModal.classList.remove("active");
     }
   }
 }

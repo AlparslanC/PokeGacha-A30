@@ -3,6 +3,8 @@ class EggCollectionView extends BaseView {
   constructor(container) {
     super(container);
     this.onIncubateClick = null;
+    this.onHatchClick = null;
+    this.onShakeModeClick = null;
   }
 
   render(eggs, progressData) {
@@ -30,23 +32,43 @@ class EggCollectionView extends BaseView {
 
     card.innerHTML = `
         <img src="images/egg.png" alt="Œuf de Pokémon" class="egg-image">
-        <div class="egg-progress">
-          <div class="egg-progress-bar" style="width: ${
-            progress.progress
-          }%;"></div>
+        <div class="egg-progress-container">
+          <div class="egg-progress-bar" style="width: ${progress.progress}%;"></div>
           <div class="egg-progress-text">${Math.floor(progress.progress)}%</div>
         </div>
-        <div class="egg-times"></div>
-        <button class="incubate-btn">Réchauffer</button>
+        <div class="egg-actions">
+          ${progress.isReady 
+            ? '<button class="hatch-btn">Faire éclore</button>' 
+            : '<button class="shake-btn">Activer le secouement</button>'}
+        </div>
       `;
 
-    const incubateBtn = card.querySelector(".incubate-btn");
-    this.bindEvent(incubateBtn, "click", (e) => {
-      e.stopPropagation();
-      if (this.onIncubateClick) {
-        this.onIncubateClick(index);
-      }
-    });
+    if (progress.isReady) {
+      const hatchBtn = card.querySelector(".hatch-btn");
+      this.bindEvent(hatchBtn, "click", (e) => {
+        e.stopPropagation();
+        if (this.onHatchClick) {
+          this.onHatchClick(index);
+        }
+      });
+    } else {
+      const shakeBtn = card.querySelector(".shake-btn");
+      this.bindEvent(shakeBtn, "click", (e) => {
+        e.stopPropagation();
+        if (this.onShakeModeClick) {
+          const isActive = this.onShakeModeClick(index);
+          if (isActive) {
+            shakeBtn.classList.add('active');
+            shakeBtn.textContent = 'Désactiver le secouement';
+            shakeBtn.dataset.active = 'true';
+          } else {
+            shakeBtn.classList.remove('active');
+            shakeBtn.textContent = 'Activer le secouement';
+            shakeBtn.dataset.active = 'false';
+          }
+        }
+      });
+    }
 
     return card;
   }
@@ -72,13 +94,57 @@ class EggCollectionView extends BaseView {
 
       if (progress.isReady) {
         eggCard.classList.add("egg-ready");
+        const actionsDiv = eggCard.querySelector(".egg-actions");
+        if (actionsDiv) {
+          actionsDiv.innerHTML = '<button class="hatch-btn">Faire éclore</button>';
+          const newHatchBtn = actionsDiv.querySelector(".hatch-btn");
+          this.bindEvent(newHatchBtn, "click", (e) => {
+            e.stopPropagation();
+            if (this.onHatchClick) {
+              this.onHatchClick(index);
+            }
+          });
+        }
       } else {
         eggCard.classList.remove("egg-ready");
+        const actionsDiv = eggCard.querySelector(".egg-actions");
+        if (actionsDiv) {
+          const currentButton = actionsDiv.querySelector(".shake-btn");
+          if (!currentButton) {
+            // Si le bouton n'existe pas, le créer
+            actionsDiv.innerHTML = '<button class="shake-btn">Activer le secouement</button>';
+            const shakeBtn = actionsDiv.querySelector(".shake-btn");
+            this.bindEvent(shakeBtn, "click", (e) => {
+              e.stopPropagation();
+              if (this.onShakeModeClick) {
+                const isActive = this.onShakeModeClick(index);
+                if (isActive) {
+                  shakeBtn.classList.add('active');
+                  shakeBtn.textContent = 'Désactiver le secouement';
+                  shakeBtn.dataset.active = 'true';
+                } else {
+                  shakeBtn.classList.remove('active');
+                  shakeBtn.textContent = 'Activer le secouement';
+                  shakeBtn.dataset.active = 'false';
+                }
+              }
+            });
+          }
+          // Ne rien faire si le bouton existe déjà - préserver son état
+        }
       }
     });
   }
 
   setOnIncubateClick(callback) {
     this.onIncubateClick = callback;
+  }
+
+  setOnHatchClick(callback) {
+    this.onHatchClick = callback;
+  }
+
+  setOnShakeModeClick(callback) {
+    this.onShakeModeClick = callback;
   }
 }
