@@ -2,7 +2,7 @@ class PokemonModel {
   constructor() {
     this.baseUrl = "https://pokeapi.co/api/v2/pokemon/";
     this.shinyRate = 1/4096; // Taux standard de shiny dans les jeux Pokémon
-    this.totalPokemon = 151; // Limité à la première génération
+    this.totalPokemon = 1025; // Limité à la première génération
   }
 
   async fetchRandomPokemon() {
