@@ -2,58 +2,33 @@ class PokemonModel {
   constructor() {
     this.baseUrl = "https://pokeapi.co/api/v2/pokemon/";
     this.shinyRate = 1/4096; // Taux standard de shiny dans les jeux Pokémon
+    this.totalPokemon = 151; // Limité à la première génération
   }
 
   async fetchRandomPokemon() {
-    const randomId = Math.floor(Math.random() * 1025) + 1;
-    const isShiny = Math.random() < this.shinyRate;
+    const id = Math.floor(Math.random() * this.totalPokemon) + 1;
+    return this.fetchPokemonById(id);
+  }
 
+  async fetchPokemonById(id) {
     try {
-      const response = await fetch(`${this.baseUrl}${randomId}`);
+      const response = await fetch(`${this.baseUrl}${id}`);
       if (!response.ok) {
-        throw new Error(`Erreur réseau: ${response.status} ${response.statusText}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-
-      const pokemon = await response.json();
-
-      // Vérifier et structurer les données de l'espèce
-      if (!pokemon.species || !pokemon.species.url) {
-        pokemon.species = {
-          name: pokemon.name,
-          url: `https://pokeapi.co/api/v2/pokemon-species/${randomId}/`
-        };
-      }
-
-      // Valider et convertir la taille
-      if (typeof pokemon.height !== 'number' || pokemon.height <= 0) {
-        console.warn(`Taille invalide pour ${pokemon.name}, utilisation de la taille par défaut`);
-        pokemon.height = this.getDefaultHeight(randomId);
-      }
-      // Convertir la taille en mètres (la taille de l'API est en décimètres)
-      pokemon.heightInMeters = pokemon.height / 10;
-
-      // Valider et convertir le poids
-      if (typeof pokemon.weight !== 'number' || pokemon.weight <= 0) {
-        console.warn(`Poids invalide pour ${pokemon.name}, utilisation du poids par défaut`);
-        pokemon.weight = this.getDefaultWeight(randomId);
-      }
-      // Convertir le poids en kg (le poids de l'API est en hectogrammes)
-      pokemon.weightInKg = pokemon.weight / 10;
-
-      // Ajouter les types
-      pokemon.allTypes = pokemon.types.map((t) => t.type.name);
-      pokemon.mainType = pokemon.allTypes[0] || "unknown";
+      const data = await response.json();
       
-      // Ajouter l'information shiny
-      pokemon.isShiny = isShiny;
-      if (isShiny) {
-        // Utiliser le sprite shiny si disponible, sinon garder le sprite normal
-        pokemon.sprites.front_default = pokemon.sprites.front_shiny || pokemon.sprites.front_default;
+      // Ajouter la propriété isShiny avec 1/4096 de chance
+      data.isShiny = Math.random() < 1/4096;
+      
+      // Si le Pokémon est shiny, utiliser le sprite shiny
+      if (data.isShiny && data.sprites.front_shiny) {
+        data.sprites.front_default = data.sprites.front_shiny;
       }
-
-      return pokemon;
+      
+      return data;
     } catch (error) {
-      console.error("Erreur lors de la récupération des données:", error);
+      console.error('Erreur lors de la récupération du Pokémon:', error);
       throw error;
     }
   }
@@ -222,8 +197,8 @@ class PokemonModel {
     return generationWeights[generation];
   }
 
-  async fetchPokemonSpecies(speciesUrl) {
-    if (!speciesUrl) {
+  async fetchPokemonSpecies(url) {
+    if (!url) {
       console.warn("URL de l'espèce manquante, tentative de récupération à partir du nom");
       throw new Error("URL de l'espèce non spécifiée");
     }
@@ -232,7 +207,7 @@ class PokemonModel {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 secondes timeout
 
-      const response = await fetch(speciesUrl, {
+      const response = await fetch(url, {
         signal: controller.signal,
         headers: {
           'Accept': 'application/json'

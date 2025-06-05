@@ -1,15 +1,80 @@
 // models/AppStateModel.js - Modèle principal de l'état de l'application
 class AppStateModel {
     constructor() {
-      this.data = {
-        pokemons: [],
-        eggs: [],
-        photos: [],
-        userPokeballs: 10,
-        cameraStream: null,
-        selectedPokemonForPhoto: null,
-      };
+      // Initialiser les cooldowns avant tout
+      this.breedingCooldownTime = 1800000; // 30 minutes en millisecondes
+
+      // Charger l'état du jeu
+      const savedState = localStorage.getItem('gameState');
+      console.log('État sauvegardé chargé:', savedState);
+      
+      try {
+        // Charger l'état général du jeu
+        const gameState = savedState ? JSON.parse(savedState) : {};
+        console.log('État parsé:', gameState);
+        
+        this.data = {
+          pokemons: gameState.pokemons || [],
+          eggs: gameState.eggs || [],
+          photos: gameState.photos || [],
+          userPokeballs: gameState.userPokeballs || 10,
+          breedingCooldowns: {},
+          cameraStream: null,
+          selectedPokemonForPhoto: null,
+        };
+
+        // Charger les cooldowns depuis les Pokémon
+        console.log('Pokémons chargés:', this.data.pokemons);
+        this.data.pokemons.forEach(pokemon => {
+          console.log('Vérification du Pokémon pour cooldown:', {
+            id: pokemon.uniqueId,
+            lastBreedingTime: pokemon.lastBreedingTime
+          });
+          
+          if (pokemon.lastBreedingTime) {
+            const now = Date.now();
+            const endTime = pokemon.lastBreedingTime + this.breedingCooldownTime;
+            const timeLeft = endTime - now;
+            
+            console.log('Calcul du cooldown:', {
+              pokemonId: pokemon.uniqueId,
+              lastBreedingTime: pokemon.lastBreedingTime,
+              endTime: endTime,
+              timeLeft: Math.round(timeLeft / 1000),
+              'secondes restantes': true
+            });
+
+            if (timeLeft > 0) {
+              this.data.breedingCooldowns[pokemon.uniqueId] = {
+                lastBreedingTime: pokemon.lastBreedingTime,
+                endTime: endTime
+              };
+              console.log('Cooldown restauré pour:', {
+                pokemonId: pokemon.uniqueId,
+                timeLeft: Math.round(timeLeft / 1000),
+                'secondes': true
+              });
+            }
+          }
+        });
+        
+      } catch (error) {
+        console.error('Erreur lors du chargement de l\'état:', error);
+        this.data = {
+          pokemons: [],
+          eggs: [],
+          photos: [],
+          userPokeballs: 10,
+          breedingCooldowns: {},
+          cameraStream: null,
+          selectedPokemonForPhoto: null,
+        };
+      }
+      
       this.observers = [];
+      
+      // Sauvegarder l'état initial
+      this.serialize();
     }
   
     // Pattern Observer pour notifier les changements
@@ -28,7 +93,10 @@ class AppStateModel {
   
     // Getters
     getPokemons() { return [...this.data.pokemons]; }
-    getEggs() { return [...this.data.eggs]; }
+    getEggs() {
+      console.log("Getting eggs from state:", this.data.eggs);
+      return this.data.eggs || [];
+    }
     getPhotos() { return [...this.data.photos]; }
     getUserPokeballs() { return this.data.userPokeballs; }
     getCameraStream() { return this.data.cameraStream; }
@@ -79,39 +147,87 @@ class AppStateModel {
       
       this.data.pokemons.push(processedPokemon);
       
-      // Trier la collection par ID Pokédex et nouveauté
+      // Trier d'abord par ID Pokédex, puis par shiny
       this.data.pokemons.sort((a, b) => {
-        if (a.isNew && !b.isNew) return -1;
-        if (!a.isNew && b.isNew) return 1;
-        return (a.id || 0) - (b.id || 0);
+        // D'abord par ID Pokédex
+        const idCompare = (a.id || 0) - (b.id || 0);
+        if (idCompare !== 0) return idCompare;
+        
+        // Ensuite par shiny (les shinys à la fin)
+        if (!a.isShiny && b.isShiny) return -1;
+        if (a.isShiny && !b.isShiny) return 1;
+        
+        // Enfin par date d'ajout (les plus récents en premier)
+        return (b.addedAt || 0) - (a.addedAt || 0);
       });
 
       console.log('État après ajout:', this.data.pokemons);
       this.notifyObservers('POKEMON_ADDED', processedPokemon);
     }
   
-    removePokemon(pokemonId) {
-      const index = this.data.pokemons.findIndex(p => p.uniqueId === pokemonId || p.id === pokemonId);
+    removePokemon(uniqueId) {
+      const index = this.data.pokemons.findIndex(p => p.uniqueId === uniqueId);
       if (index !== -1) {
-        const removedPokemon = this.data.pokemons.splice(index, 1)[0];
-        this.notifyObservers('POKEMON_REMOVED', removedPokemon);
-        return removedPokemon;
+        const pokemon = this.data.pokemons.splice(index, 1)[0];
+        this.notifyObservers('POKEMON_REMOVED', pokemon);
       }
-      return null;
     }
   
     addEgg(egg) {
-      this.data.eggs.push(egg);
-      this.notifyObservers('EGG_ADDED', egg);
+      if (!this.data.eggs) {
+        this.data.eggs = [];
+      }
+
+      // Vérifier que l'œuf a toutes les propriétés nécessaires
+      if (!egg.createdAt || !egg.lastShake) {
+        console.error("Tentative d'ajout d'un œuf invalide:", egg);
+        return;
+      }
+
+      // Créer une copie de l'œuf avec toutes les propriétés nécessaires
+      const processedEgg = {
+        ...egg,
+        createdAt: egg.createdAt,
+        lastShake: egg.lastShake,
+        progress: egg.progress || 0,
+        isBreedingEgg: egg.isBreedingEgg || false,
+        parentPokemon: egg.parentPokemon || null
+      };
+
+      this.data.eggs.push(processedEgg);
+      console.log("Added egg to state:", {
+        egg: processedEgg,
+        totalEggs: this.data.eggs.length,
+        allEggs: this.data.eggs
+      });
+      this.notifyObservers('EGG_ADDED', processedEgg);
     }
   
     removeEgg(index) {
+      if (index < 0 || index >= this.data.eggs.length) {
+        console.error("Tentative de suppression d'un œuf avec un index invalide:", index);
+        return;
+      }
       const egg = this.data.eggs.splice(index, 1)[0];
+      console.log("Removed egg from state:", {
+        removedEgg: egg,
+        remainingEggs: this.data.eggs.length,
+        allEggs: this.data.eggs
+      });
       this.notifyObservers('EGG_REMOVED', { egg, index });
     }
   
     updateEgg(index, egg) {
+      if (index < 0 || index >= this.data.eggs.length) {
+        console.error("Tentative de mise à jour d'un œuf avec un index invalide:", index);
+        return;
+      }
       this.data.eggs[index] = { ...this.data.eggs[index], ...egg };
+      console.log("Updated egg in state:", {
+        updatedEgg: this.data.eggs[index],
+        index,
+        allEggs: this.data.eggs
+      });
       this.notifyObservers('EGG_UPDATED', { egg: this.data.eggs[index], index });
     }
   
@@ -169,54 +285,243 @@ class AppStateModel {
       }
     }
   
+    loadBreedingCooldowns() {
+      try {
+        const now = Date.now();
+        const savedCooldowns = JSON.parse(localStorage.getItem('breedingCooldowns')) || {};
+        
+        // Nettoyer les cooldowns expirés
+        this.data.breedingCooldowns = Object.entries(savedCooldowns).reduce((acc, [id, endTime]) => {
+          if (endTime > now) {
+            acc[id] = endTime;
+          }
+          return acc;
+        }, {});
+        
+        // Sauvegarder les cooldowns nettoyés
+        this.saveBreedingCooldowns();
+        
+        console.log('Cooldowns chargés:', this.data.breedingCooldowns);
+      } catch (error) {
+        console.error('Erreur lors du chargement des cooldowns:', error);
+        this.data.breedingCooldowns = {};
+        localStorage.removeItem('breedingCooldowns');
+      }
+    }
+  
+    saveBreedingCooldowns() {
+      try {
+        // S'assurer que tous les timestamps sont des nombres
+        const cleanCooldowns = Object.entries(this.data.breedingCooldowns).reduce((acc, [id, time]) => {
+          acc[id] = parseInt(time);
+          return acc;
+        }, {});
+        
+        const cooldowns = JSON.stringify(cleanCooldowns);
+        localStorage.setItem('breedingCooldowns', cooldowns);
+        console.log('Cooldowns sauvegardés:', cleanCooldowns);
+      } catch (error) {
+        console.error('Erreur lors de la sauvegarde des cooldowns:', error);
+      }
+    }
+  
+    startBreedingCooldown(pokemonId) {
+      const now = Date.now();
+      const pokemon = this.data.pokemons.find(p => p.uniqueId === pokemonId);
+      
+      console.log('Démarrage du cooldown pour:', {
+        pokemonId: pokemonId,
+        found: !!pokemon,
+        timestamp: now
+      });
+      
+      if (pokemon) {
+        pokemon.lastBreedingTime = now;
+        this.data.breedingCooldowns[pokemonId] = {
+          lastBreedingTime: now,
+          endTime: now + this.breedingCooldownTime
+        };
+        
+        const duration = Math.round(this.breedingCooldownTime / 1000);
+        console.log('Cooldown démarré:', {
+          pokemonId: pokemonId,
+          lastBreedingTime: now,
+          duration: duration,
+          'secondes': true
+        });
+        
+        // Sauvegarder immédiatement l'état
+        this.serialize();
+        
+        this.notifyObservers('BREEDING_COOLDOWN_STARTED', {
+          pokemonId: pokemonId,
+          endTime: now + this.breedingCooldownTime,
+          timeLeft: duration
+        });
+      } else {
+        console.error('Pokemon non trouvé pour le cooldown:', pokemonId);
+      }
+    }
+  
+    isBreedingAvailable(pokemonId) {
+      const pokemon = this.data.pokemons.find(p => p.uniqueId === pokemonId);
+      console.log('Vérification disponibilité pour:', {
+        pokemonId: pokemonId,
+        found: !!pokemon,
+        lastBreedingTime: pokemon?.lastBreedingTime
+      });
+      
+      if (!pokemon || !pokemon.lastBreedingTime) return true;
+      
+      const now = Date.now();
+      const endTime = pokemon.lastBreedingTime + this.breedingCooldownTime;
+      const timeLeft = Math.round((endTime - now) / 1000);
+      
+      console.log('Calcul disponibilité:', {
+        pokemonId: pokemonId,
+        now: now,
+        endTime: endTime,
+        timeLeft: timeLeft,
+        'secondes': true
+      });
+      
+      if (now >= endTime) {
+        delete pokemon.lastBreedingTime;
+        delete this.data.breedingCooldowns[pokemonId];
+        this.serialize();
+        console.log('Cooldown terminé pour:', pokemonId);
+        return true;
+      }
+      
+      console.log('Cooldown actif:', {
+        pokemonId: pokemonId,
+        timeLeft: timeLeft,
+        'secondes': true
+      });
+      return false;
+    }
+  
+    getBreedingCooldownProgress(pokemonId) {
+      const pokemon = this.data.pokemons.find(p => p.uniqueId === pokemonId);
+      if (!pokemon || !pokemon.lastBreedingTime) return 100;
+
+      const now = Date.now();
+      const endTime = pokemon.lastBreedingTime + this.breedingCooldownTime;
+      
+      if (now >= endTime) {
+        delete pokemon.lastBreedingTime;
+        delete this.data.breedingCooldowns[pokemonId];
+        this.serialize();
+        return 100;
+      }
+
+      const elapsed = now - pokemon.lastBreedingTime;
+      const progress = (elapsed / this.breedingCooldownTime) * 100;
+      const result = Math.min(100, Math.max(0, progress));
+      const timeLeft = Math.round((endTime - now) / 1000);
+      
+      console.log('Progression du cooldown:', {
+        pokemonId: pokemonId,
+        elapsed: Math.round(elapsed / 1000),
+        progress: Math.round(result),
+        timeLeft: timeLeft,
+        'secondes': true
+      });
+      
+      return result;
+    }
+  
     // Méthodes pour la persistance
     hydrate(data) {
-      // Copie profonde des données
       if (data) {
-        console.log('Données à hydrater:', data);
+        console.log('Hydratation avec données:', data);
         
-        // Process pokemons to ensure they all have uniqueIds
-        const processedPokemons = data.pokemons ? JSON.parse(JSON.stringify(data.pokemons)).map(pokemon => {
-          if (!pokemon.uniqueId) {
-            // Generate a unique ID for existing Pokemon
-            pokemon.uniqueId = `${pokemon.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            console.log(`Generated uniqueId for ${pokemon.name}:`, pokemon.uniqueId);
-          }
-          return pokemon;
-        }) : [];
+        const processedEggs = (data.eggs || []).map(egg => ({
+          ...egg,
+          createdAt: Number(egg.createdAt) || Date.now(),
+          lastShake: Number(egg.lastShake) || Date.now(),
+          progress: Number(egg.progress) || 0
+        }));
+
+        // Traiter les Pokémon pour s'assurer que lastBreedingTime est un nombre
+        const processedPokemons = (data.pokemons || []).map(pokemon => {
+          const processed = {
+            ...pokemon,
+            lastBreedingTime: pokemon.lastBreedingTime ? Number(pokemon.lastBreedingTime) : null
+          };
+          console.log('Pokémon traité:', {
+            id: processed.uniqueId,
+            lastBreedingTime: processed.lastBreedingTime
+          });
+          return processed;
+        });
 
         this.data = {
           ...this.data,
           pokemons: processedPokemons,
-          eggs: data.eggs ? JSON.parse(JSON.stringify(data.eggs)) : [],
-          photos: data.photos ? JSON.parse(JSON.stringify(data.photos)) : [],
+          eggs: processedEggs,
+          photos: data.photos || [],
           userPokeballs: data.userPokeballs || 10,
-          cameraStream: null, // Ne pas restaurer le stream de la caméra
-          selectedPokemonForPhoto: null // Réinitialiser la sélection
+          breedingCooldowns: {}
         };
-        console.log('État après hydratation:', this.data);
+
+        // Reconstruire les cooldowns à partir des timestamps des Pokémon
+        this.data.pokemons.forEach(pokemon => {
+          if (pokemon.lastBreedingTime) {
+            const now = Date.now();
+            const endTime = pokemon.lastBreedingTime + this.breedingCooldownTime;
+            if (now < endTime) {
+              this.data.breedingCooldowns[pokemon.uniqueId] = {
+                lastBreedingTime: pokemon.lastBreedingTime,
+                endTime: endTime
+              };
+              console.log('Cooldown restauré:', {
+                pokemonId: pokemon.uniqueId,
+                timeLeft: Math.round((endTime - now) / 1000),
+                'secondes': true
+              });
+            }
+          }
+        });
+        
+        console.log('État hydraté:', {
+          pokemonCount: this.data.pokemons.length,
+          withCooldowns: Object.keys(this.data.breedingCooldowns).length
+        });
+        
+        this.notifyObservers('STATE_HYDRATED', {
+          data: this.data,
+          cooldowns: this.data.breedingCooldowns
+        });
       }
-      this.notifyObservers('STATE_HYDRATED', this.data);
     }
   
     serialize() {
-      // Ensure all Pokemon have uniqueIds before serializing
-      this.data.pokemons.forEach(pokemon => {
-        if (!pokemon.uniqueId) {
-          pokemon.uniqueId = `${pokemon.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          console.log(`Generated uniqueId for ${pokemon.name} during serialization:`, pokemon.uniqueId);
-        }
-      });
-
-      // Copie profonde des données à sauvegarder
-      const serializedData = {
-        pokemons: JSON.parse(JSON.stringify(this.data.pokemons)),
-        eggs: JSON.parse(JSON.stringify(this.data.eggs)),
-        photos: JSON.parse(JSON.stringify(this.data.photos)),
+      // Sauvegarder l'état complet du jeu
+      const gameState = {
+        pokemons: this.data.pokemons.map(pokemon => ({
+          ...pokemon,
+          lastBreedingTime: pokemon.lastBreedingTime || null
+        })),
+        eggs: this.data.eggs,
+        photos: this.data.photos,
         userPokeballs: this.data.userPokeballs
       };
-      console.log('Données sérialisées:', serializedData);
-      return serializedData;
+      
+      try {
+        const serializedState = JSON.stringify(gameState);
+        localStorage.setItem('gameState', serializedState);
+        
+        console.log('État sauvegardé:', {
+          pokemonCount: gameState.pokemons.length,
+          withCooldowns: gameState.pokemons.filter(p => p.lastBreedingTime).length,
+          state: serializedState
+        });
+      } catch (error) {
+        console.error('Erreur lors de la sauvegarde de l\'état:', error);
+      }
+      
+      return gameState;
     }
   
     // Méthode pour régénérer les uniqueIds pour tous les Pokemon
@@ -229,5 +534,25 @@ class AppStateModel {
       });
       this.notifyObservers('STATE_HYDRATED', this.data);
       return this.data.pokemons.length;
+    }
+
+    cleanExpiredCooldowns() {
+      const now = Date.now();
+      let hasChanges = false;
+      
+      Object.entries(this.data.breedingCooldowns).forEach(([pokemonId, endTime]) => {
+        if (endTime <= now) {
+          delete this.data.breedingCooldowns[pokemonId];
+          hasChanges = true;
+          console.log(`Cooldown expiré supprimé pour ${pokemonId}`);
+        } else {
+          const timeLeft = Math.round((endTime - now) / 1000);
+          console.log(`Cooldown actif pour ${pokemonId}: ${timeLeft} secondes restantes`);
+        }
+      });
+      
+      if (hasChanges) {
+        this.serialize();
+      }
     }
   }

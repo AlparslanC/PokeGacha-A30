@@ -8,10 +8,14 @@ class MainPresenter {
 
     this.uiView = new UIView();
     this.pokemonCollectionView = new PokemonCollectionView(
-      document.getElementById("pokemon-list")
+      document.getElementById("pokemon-list"),
+      this.appStateModel,
+      this.uiView
     );
     this.eggCollectionView = new EggCollectionView(
-      document.getElementById("egg-list")
+      document.getElementById("egg-list"),
+      this.appStateModel,
+      this.uiView
     );
     this.photoCollectionView = new PhotoCollectionView(
       document.getElementById("photos-list")
@@ -23,6 +27,8 @@ class MainPresenter {
       this.eggModel,
       this.uiView
     );
+    this.gameLogicPresenter.setMainPresenter(this);
+    
     this.photoPresenter = new PhotoPresenter(this.appStateModel, this.uiView);
 
     this.init();
@@ -71,6 +77,7 @@ class MainPresenter {
       if (pokemon.isNew) {
         this.appStateModel.markPokemonAsSeen(pokemon.uniqueId);
         this.saveData(); // Sauvegarder le changement
+        this.renderPokemonCollection(); // Recharger la collection pour mettre à jour l'ordre
       }
       this.showPokemonDetails(pokemon);
     });
@@ -122,6 +129,60 @@ class MainPresenter {
         setTimeout(() => {
           window.location.reload();
         }, 2000);
+
+      } catch (error) {
+        this.uiView.showNotification(error.message);
+      } finally {
+        this.uiView.hideLoader();
+      }
+    });
+
+    this.pokemonCollectionView.setOnBreedingSelect(async (selectedIds) => {
+      try {
+        this.uiView.showLoader();
+        const pokemons = this.appStateModel.getPokemons();
+        const selectedPokemons = selectedIds.map(id => 
+          pokemons.find(p => p.uniqueId === id)
+        ).filter(p => p !== undefined);
+
+        if (selectedPokemons.length !== 2) {
+          throw new Error("Veuillez sélectionner exactement 2 Pokémon pour l'accouplement.");
+        }
+
+        // Vérifier si les Pokémon sont disponibles pour l'accouplement
+        for (const pokemon of selectedPokemons) {
+          if (!this.appStateModel.isBreedingAvailable(pokemon.uniqueId)) {
+            throw new Error(`${this.capitalizeFirstLetter(pokemon.name)} est encore en recharge d'accouplement !`);
+          }
+        }
+
+        // Créer un œuf d'accouplement avec le premier Pokémon comme parent
+        const breedingEgg = this.eggModel.createEgg(selectedPokemons[0]);
+        console.log("Created breeding egg:", breedingEgg);
+
+        // Ajouter l'œuf avant de démarrer les cooldowns
+        this.appStateModel.addEgg(breedingEgg);
+        console.log("Added egg to state, current eggs:", this.appStateModel.getEggs());
+
+        // Démarrer le cooldown pour les deux Pokémon sans les supprimer
+        selectedPokemons.forEach(pokemon => {
+          this.appStateModel.startBreedingCooldown(pokemon.uniqueId);
+          console.log(`Started breeding cooldown for ${pokemon.name} (${pokemon.uniqueId})`);
+        });
+
+        this.uiView.hideLoader();
+        this.uiView.showRewardModal(
+          "Accouplement réussi !",
+          "images/egg.png",
+          `Les ${selectedPokemons.map(p => this.capitalizeFirstLetter(p.name)).join(" et ")} ont créé un œuf !`
+        );
+
+        // Rafraîchir les collections
+        this.refreshCollections();
+        
+        // Désactiver le mode sélection
+        this.pokemonCollectionView.disableSelectionMode();
+        document.querySelector(".select-duplicates-btn")?.classList.remove("active");
 
       } catch (error) {
         this.uiView.showNotification(error.message);
@@ -303,6 +364,8 @@ class MainPresenter {
     const progressData = eggs.map((egg) =>
       this.eggModel.calculateProgress(egg)
     );
+    console.log("Rendering eggs:", eggs.length, "eggs found");
+    console.log("Progress data:", progressData);
     this.eggCollectionView.render(eggs, progressData);
   }
 
@@ -411,57 +474,74 @@ class MainPresenter {
     return string.charAt(0).toUpperCase() + string.slice(1);
   }
 
+  refreshCollections() {
+    console.log("Refreshing all collections");
+    this.renderPokemonCollection();
+    this.renderEggCollection();
+    this.renderPhotoCollection();
+    this.renderCounters();
+  }
+
   // Observer pattern - réagir aux changements d'état
   update(changeType, data) {
-    // Fonction pour sauvegarder avec une petite attente
-    const saveWithDelay = () => {
-      setTimeout(() => {
-        this.saveData();
-        // Vérifier que la sauvegarde a bien été effectuée
-        const savedData = this.storageModel.load();
-        if (savedData) {
-          const expectedLength = this.appStateModel.getPokemons().length;
-          const actualLength = savedData.pokemons.length;
-          if (expectedLength !== actualLength) {
-            console.warn(`Problème de sauvegarde détecté: ${expectedLength} pokémons attendus, ${actualLength} sauvegardés`);
-            // Réessayer la sauvegarde
-            this.saveData();
-          }
-        }
-      }, 100);
-    };
-
+    console.log("State update:", changeType, data);
+    
     switch (changeType) {
       case "POKEMON_ADDED":
-        this.renderPokemonCollection();
-        this.renderCounters();
-        saveWithDelay();
-        break;
+      case "POKEMON_REMOVED":
       case "EGG_ADDED":
-        this.renderEggCollection();
-        this.renderCounters();
-        saveWithDelay();
-        break;
       case "EGG_REMOVED":
-        this.renderEggCollection();
-        this.renderCounters();
-        saveWithDelay();
-        break;
       case "EGG_UPDATED":
-        this.updateEggProgress();
-        saveWithDelay();
-        break;
       case "PHOTO_ADDED":
-        this.renderPhotoCollection();
-        saveWithDelay();
-        break;
       case "POKEBALLS_UPDATED":
-        this.renderCounters();
-        saveWithDelay();
+        this.refreshCollections();
+        this.saveData();
         break;
       case "STATE_HYDRATED":
-        this.renderAll();
+        this.refreshCollections();
         break;
     }
+  }
+
+  async handleBreeding(selectedPokemonIds) {
+    if (selectedPokemonIds.length !== 2) {
+      this.uiView.showNotification("Sélectionnez exactement 2 Pokémon pour l'accouplement");
+      return;
+    }
+
+    const pokemon1 = this.appStateModel.getPokemonById(selectedPokemonIds[0]);
+    const pokemon2 = this.appStateModel.getPokemonById(selectedPokemonIds[1]);
+
+    if (!pokemon1 || !pokemon2) {
+      this.uiView.showNotification("Erreur : Pokémon non trouvé");
+      return;
+    }
+
+    // Vérifier si les Pokémon sont disponibles pour l'accouplement
+    if (!this.appStateModel.isBreedingAvailable(pokemon1.uniqueId)) {
+      this.uiView.showNotification(`${this.capitalizeFirstLetter(pokemon1.name)} est encore en recharge d'accouplement !`);
+      return;
+    }
+    if (!this.appStateModel.isBreedingAvailable(pokemon2.uniqueId)) {
+      this.uiView.showNotification(`${this.capitalizeFirstLetter(pokemon2.name)} est encore en recharge d'accouplement !`);
+      return;
+    }
+
+    // Créer un œuf d'accouplement avec le premier Pokémon comme parent
+    const breedingEgg = this.eggModel.createBreedingEgg(pokemon1);
+    this.appStateModel.addEgg(breedingEgg);
+
+    // Démarrer le cooldown pour les deux Pokémon
+    this.appStateModel.startBreedingCooldown(pokemon1.uniqueId);
+    this.appStateModel.startBreedingCooldown(pokemon2.uniqueId);
+
+    // Rafraîchir l'affichage
+    this.refreshCollections();
+
+    this.uiView.showRewardModal(
+      "Accouplement réussi !",
+      "images/egg.png",
+      `Les ${this.capitalizeFirstLetter(pokemon1.name)} et ${this.capitalizeFirstLetter(pokemon2.name)} ont créé un œuf !`
+    );
   }
 }

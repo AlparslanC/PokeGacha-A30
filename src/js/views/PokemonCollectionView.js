@@ -1,16 +1,19 @@
 // views/PokemonCollectionView.js - Vue pour la collection de Pokémon
 class PokemonCollectionView extends BaseView {
-  constructor(container) {
+  constructor(container, appStateModel, uiView) {
     super(container);
+    this.appStateModel = appStateModel;
+    this.uiView = uiView;
     this.onPokemonClick = null;
     this.onEvolutionSelect = null;
+    this.onBreedingSelect = null;
     this.isSelectionMode = false;
     this.selectedPokemon = new Set();
     this.currentPokemonType = null;
   }
 
   render(pokemons) {
-    this.clearContainer();
+    this.clear();
 
     if (pokemons.length === 0) {
       this.container.innerHTML =
@@ -59,9 +62,14 @@ class PokemonCollectionView extends BaseView {
     // Bouton d'évolution
     const evolveButton = this.createElement("button", "evolve-btn", "Faire évoluer");
     this.bindEvent(evolveButton, "click", () => this.evolveSelected());
+
+    // Bouton d'accouplement
+    const breedButton = this.createElement("button", "breed-btn", "Accoupler");
+    this.bindEvent(breedButton, "click", () => this.breedSelected());
     
     controls.appendChild(selectButton);
     controls.appendChild(evolveButton);
+    controls.appendChild(breedButton);
     
     return controls;
   }
@@ -76,9 +84,22 @@ class PokemonCollectionView extends BaseView {
       card.classList.add("shiny");
     }
 
+    // Ajouter la barre de progression de recharge d'accouplement
+    const breedingProgress = this.appStateModel.getBreedingCooldownProgress(pokemon.uniqueId);
+    if (breedingProgress < 100) {
+      const breedingCooldown = this.createElement("div", "breeding-cooldown");
+      breedingCooldown.innerHTML = `
+        <div class="breeding-cooldown-bar" style="width: ${breedingProgress}%"></div>
+        <div class="breeding-cooldown-text">Recharge: ${Math.floor(breedingProgress)}%</div>
+      `;
+      card.appendChild(breedingCooldown);
+      card.classList.add("breeding-cooldown-active");
+    }
+
     if (pokemon.isNew) {
       card.classList.add("new");
       const newBadge = this.createElement("span", "new-badge", "Nouveau !");
+      newBadge.dataset.pokemonId = pokemon.uniqueId;
       card.appendChild(newBadge);
     }
 
@@ -103,7 +124,7 @@ class PokemonCollectionView extends BaseView {
 
     // Image
     const image = this.createElement("img", "pokemon-image");
-    image.src = pokemon.sprites.front_default;
+    image.src = pokemon.isShiny ? pokemon.sprites.front_shiny : pokemon.sprites.front_default;
     image.alt = pokemon.name;
 
     // Name
@@ -120,8 +141,16 @@ class PokemonCollectionView extends BaseView {
     this.bindEvent(card, "click", (event) => {
       if (this.isSelectionMode && !pokemon.isShiny) {
         event.stopPropagation();
-        this.togglePokemonSelection(card, pokemon);
+        // Vérifier si le Pokémon est disponible pour l'accouplement
+        if (this.appStateModel.isBreedingAvailable(pokemon.uniqueId)) {
+          this.togglePokemonSelection(card, pokemon);
+        } else {
+          this.uiView.showNotification("Ce Pokémon est en recharge d'accouplement !");
+        }
       } else if (this.onPokemonClick && !this.isSelectionMode) {
+        if (pokemon.isNew) {
+          this.removeNewBadge(pokemon.uniqueId);
+        }
         this.onPokemonClick(pokemon);
       }
     });
@@ -182,6 +211,17 @@ class PokemonCollectionView extends BaseView {
     this.updateEvolutionButton();
   }
 
+  removeNewBadge(pokemonId) {
+    const card = this.container.querySelector(`.pokemon-card[data-id="${pokemonId}"]`);
+    if (card) {
+      card.classList.remove("new");
+      const badge = card.querySelector(`.new-badge[data-pokemon-id="${pokemonId}"]`);
+      if (badge) {
+        badge.remove();
+      }
+    }
+  }
+
   togglePokemonSelection(card, pokemon) {
     if (!card.classList.contains("selectable")) {
       return;
@@ -211,9 +251,19 @@ class PokemonCollectionView extends BaseView {
   }
 
   updateEvolutionButton() {
-    const evolveButton = document.getElementById('evolution-controls-container')?.querySelector(".evolve-btn");
+    this.updateActionButtons();
+  }
+
+  updateActionButtons() {
+    const evolveButton = document.querySelector(".evolve-btn");
+    const breedButton = document.querySelector(".breed-btn");
+    
     if (evolveButton) {
       evolveButton.classList.toggle("active", this.selectedPokemon.size >= 2);
+    }
+    
+    if (breedButton) {
+      breedButton.classList.toggle("active", this.selectedPokemon.size === 2);
     }
   }
 
@@ -225,12 +275,23 @@ class PokemonCollectionView extends BaseView {
     }
   }
 
+  breedSelected() {
+    if (this.selectedPokemon.size === 2 && this.onBreedingSelect) {
+      this.onBreedingSelect(Array.from(this.selectedPokemon));
+      this.disableSelectionMode();
+    }
+  }
+
   setOnPokemonClick(callback) {
     this.onPokemonClick = callback;
   }
 
   setOnEvolutionSelect(callback) {
     this.onEvolutionSelect = callback;
+  }
+
+  setOnBreedingSelect(callback) {
+    this.onBreedingSelect = callback;
   }
 
   capitalizeFirstLetter(string) {

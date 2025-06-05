@@ -13,7 +13,7 @@ class BaseView {
     return element;
   }
 
-  clearContainer() {
+  clear() {
     if (this.container) {
       this.container.innerHTML = "";
     }
@@ -50,5 +50,10 @@ class BaseView {
       });
     });
     this.eventHandlers.clear();
+  }
+
+  capitalizeFirstLetter(string) {
+    if (!string) return '';
+    return string.charAt(0).toUpperCase() + string.slice(1);
   }
 }

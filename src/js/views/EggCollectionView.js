@@ -1,74 +1,106 @@
 // views/EggCollectionView.js - Vue pour la collection d'œufs
 class EggCollectionView extends BaseView {
-  constructor(container) {
+  constructor(container, appStateModel, uiView) {
     super(container);
+    this.appStateModel = appStateModel;
+    this.uiView = uiView;
     this.onIncubateClick = null;
     this.onHatchClick = null;
     this.onShakeModeClick = null;
   }
 
   render(eggs, progressData) {
-    this.clearContainer();
+    this.clear();
 
-    if (eggs.length === 0) {
+    if (!eggs || eggs.length === 0) {
       this.container.innerHTML =
         "<p class='text-center'>Vous n'avez pas d'œufs pour le moment.</p>";
       return;
     }
 
     eggs.forEach((egg, index) => {
-      const eggCard = this.createEggCard(egg, index, progressData[index]);
-      this.container.appendChild(eggCard);
+      if (!progressData || !progressData[index]) {
+        console.error('Données de progression manquantes pour l\'œuf', index);
+        return;
+      }
+      const card = this.createEggCard(egg, index, progressData[index]);
+      this.container.appendChild(card);
     });
   }
 
   createEggCard(egg, index, progress) {
+    if (!egg || !progress) {
+      console.error('Données manquantes pour la création de la carte d\'œuf', { egg, index, progress });
+      return null;
+    }
+
     const card = this.createElement("div", "egg-card");
     card.dataset.index = index;
 
-    if (progress.isReady) {
-      card.classList.add("egg-ready");
+    const imageContainer = this.createElement("div", "egg-image-container");
+
+    // Image de l'œuf
+    const image = this.createElement("img");
+    image.src = "images/egg.png";
+    image.alt = "Œuf Pokémon";
+
+    // Si c'est un œuf d'accouplement, ajouter le style spécial et l'icône du parent
+    if (egg.isBreedingEgg && egg.parentPokemon) {
+      card.classList.add("breeding-egg");
+      
+      // Créer le conteneur pour l'icône du parent
+      const parentOverlay = this.createElement("div", "parent-pokemon-overlay");
+      const parentIcon = this.createElement("img", "parent-pokemon-icon");
+      parentIcon.src = egg.parentPokemon.sprites.front_default;
+      parentIcon.alt = egg.parentPokemon.name ? this.capitalizeFirstLetter(egg.parentPokemon.name) : 'Pokemon Parent';
+      
+      parentOverlay.appendChild(parentIcon);
+      imageContainer.appendChild(parentOverlay);
+
+      // Ajouter le tag "Œuf d'accouplement"
+      const breedingTag = this.createElement("div", "breeding-tag", "Œuf d'accouplement");
+      card.appendChild(breedingTag);
     }
 
-    card.innerHTML = `
-        <img src="images/egg.png" alt="Œuf de Pokémon" class="egg-image">
-        <div class="egg-progress-container">
-          <div class="egg-progress-bar" style="width: ${progress.progress}%;"></div>
-          <div class="egg-progress-text">${Math.floor(progress.progress)}%</div>
-        </div>
-        <div class="egg-actions">
-          ${progress.isReady 
-            ? '<button class="hatch-btn">Faire éclore</button>' 
-            : '<button class="shake-btn">Activer le secouement</button>'}
-        </div>
-      `;
+    imageContainer.appendChild(image);
+    card.appendChild(imageContainer);
 
+    // Barre de progression
+    const progressContainer = this.createElement("div", "egg-progress-container");
+    const progressBar = this.createElement("div", "egg-progress-bar");
+    progressBar.style.width = `${progress.progress}%`;
+    const progressText = this.createElement("div", "egg-progress-text", `${Math.floor(progress.progress)}%`);
+    
+    progressContainer.appendChild(progressBar);
+    progressContainer.appendChild(progressText);
+    card.appendChild(progressContainer);
+
+    // Bouton d'action (Secouer ou Faire éclore)
+    const actionsDiv = this.createElement("div", "egg-actions");
+    
     if (progress.isReady) {
-      const hatchBtn = card.querySelector(".hatch-btn");
-      this.bindEvent(hatchBtn, "click", (e) => {
+      const hatchButton = this.createElement("button", "hatch-btn", "Faire éclore");
+      this.bindEvent(hatchButton, "click", (e) => {
         e.stopPropagation();
         if (this.onHatchClick) {
           this.onHatchClick(index);
         }
       });
+      actionsDiv.appendChild(hatchButton);
+      card.classList.add("egg-ready");
     } else {
-      const shakeBtn = card.querySelector(".shake-btn");
-      this.bindEvent(shakeBtn, "click", (e) => {
+      const shakeButton = this.createElement("button", "shake-btn", "Secouer");
+      this.bindEvent(shakeButton, "click", (e) => {
         e.stopPropagation();
         if (this.onShakeModeClick) {
           const isActive = this.onShakeModeClick(index);
-          if (isActive) {
-            shakeBtn.classList.add('active');
-            shakeBtn.textContent = 'Désactiver le secouement';
-            shakeBtn.dataset.active = 'true';
-          } else {
-            shakeBtn.classList.remove('active');
-            shakeBtn.textContent = 'Activer le secouement';
-            shakeBtn.dataset.active = 'false';
-          }
+          shakeButton.classList.toggle("active", isActive);
         }
       });
+      actionsDiv.appendChild(shakeButton);
     }
+    
+    card.appendChild(actionsDiv);
 
     return card;
   }

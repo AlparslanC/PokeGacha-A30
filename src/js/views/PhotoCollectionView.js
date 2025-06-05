@@ -6,38 +6,38 @@ class PhotoCollectionView extends BaseView {
   }
 
   render(photos) {
-    this.clearContainer();
+    this.clear();
 
-    if (!photos || photos.length === 0) {
-      this.container.innerHTML =
-        "<p class='text-center'>Aucune photo sauvegardée.</p>";
+    if (photos.length === 0) {
+      this.container.innerHTML = "<p class='text-center'>Aucune photo prise pour l'instant.</p>";
       return;
     }
 
-    photos.forEach((photo, index) => {
-      const photoCard = this.createPhotoCard(photo, index);
-      this.container.appendChild(photoCard);
+    photos.forEach(photo => {
+      const card = this.createPhotoCard(photo);
+      this.container.appendChild(card);
     });
   }
 
-  createPhotoCard(photo, index) {
-    const card = this.createElement("div", "photo-item");
-
-    card.innerHTML = `
-        <img src="${
-          photo.image || photo.dataUrl
-        }" alt="Photo de Pokémon" class="photo-img">
-        <div class="photo-info">
-          <p>Photo avec ${this.capitalizeFirstLetter(photo.pokemon.name)}</p>
-        </div>
-      `;
-
+  createPhotoCard(photo) {
+    const card = this.createElement("div", "photo-card");
+    
+    const image = this.createElement("img", "photo-image");
+    image.src = photo.image || photo.dataUrl;
+    image.alt = "Photo avec " + photo.pokemon.name;
+    
+    const info = this.createElement("div", "photo-info");
+    info.textContent = new Date(photo.date).toLocaleDateString();
+    
+    card.appendChild(image);
+    card.appendChild(info);
+    
     this.bindEvent(card, "click", () => {
       if (this.onPhotoClick) {
         this.onPhotoClick(photo);
       }
     });
-
+    
     return card;
   }
 

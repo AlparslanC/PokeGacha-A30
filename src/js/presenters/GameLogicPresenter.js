@@ -10,6 +10,48 @@ class GameLogicPresenter {
     this.shakeCooldown = 1000; // 1 seconde entre chaque secouement
     this.activeEggIndex = null;
     this.lastAcceleration = { x: 0, y: 0, z: 0 };
+    this.mainPresenter = null; // Sera défini par setMainPresenter
+    
+    // Charger les cooldowns au démarrage
+    this.loadBreedingCooldowns();
+  }
+
+  setMainPresenter(mainPresenter) {
+    this.mainPresenter = mainPresenter;
+  }
+
+  loadBreedingCooldowns() {
+    try {
+      const savedCooldowns = localStorage.getItem('breedingCooldowns');
+      if (savedCooldowns) {
+        const cooldowns = JSON.parse(savedCooldowns);
+        // Nettoyer les cooldowns expirés
+        const now = Date.now();
+        const validCooldowns = {};
+        for (const [pokemonId, endTime] of Object.entries(cooldowns)) {
+          if (endTime > now) {
+            validCooldowns[pokemonId] = endTime;
+          }
+        }
+        // Mettre à jour le localStorage avec les cooldowns valides
+        localStorage.setItem('breedingCooldowns', JSON.stringify(validCooldowns));
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des cooldowns:', error);
+      localStorage.removeItem('breedingCooldowns');
+    }
+  }
+
+  saveBreedingCooldowns(cooldowns) {
+    try {
+      localStorage.setItem('breedingCooldowns', JSON.stringify(cooldowns));
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde des cooldowns:', error);
+    }
+  }
+
+  updateBreedingCooldown(pokemonId, duration = 300000) { // 5 minutes en millisecondes
+    this.appStateModel.startBreedingCooldown(pokemonId);
   }
 
   async openPokeball() {
@@ -78,22 +120,46 @@ class GameLogicPresenter {
     const eggs = this.appStateModel.getEggs();
     const egg = eggs[index];
 
-    if (!egg.hatched) {
-      try {
-        const pokemon = await this.pokemonModel.fetchRandomPokemon();
-        this.appStateModel.addPokemon(pokemon);
-        this.appStateModel.removeEgg(index);
-        this.uiView.showRewardModal(
-          pokemon.isShiny ? "Œuf éclos - Pokémon Chromatique !" : "Œuf éclos !",
-          pokemon.sprites.front_default,
-          pokemon.isShiny 
-            ? `Incroyable ! Un ${this.capitalizeFirstLetter(pokemon.name)} Chromatique est né !`
-            : `Un ${this.capitalizeFirstLetter(pokemon.name)} est né !`
-        );
-      } catch (error) {
-        console.error("Erreur lors de l'éclosion:", error);
-        this.uiView.showNotification("Erreur lors de l'éclosion de l'œuf.");
+    if (!egg) {
+      console.error("Egg not found at index:", index);
+      return;
+    }
+
+    try {
+      let pokemon;
+      if (egg.isBreedingEgg && egg.parentPokemon) {
+        // Pour un œuf d'accouplement, on récupère les données du Pokémon parent
+        pokemon = await this.pokemonModel.fetchPokemonById(egg.parentPokemon.id);
+        pokemon.uniqueId = `${pokemon.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        pokemon.isShiny = Math.random() < 1/4096; // Taux officiel de shiny (1/4096)
+      } else {
+        // Pour un œuf normal, on obtient un Pokémon aléatoire
+        pokemon = await this.pokemonModel.fetchRandomPokemon();
       }
+
+      this.appStateModel.addPokemon(pokemon);
+      this.appStateModel.removeEgg(index);
+      
+      const message = egg.isBreedingEgg 
+        ? `Un ${this.capitalizeFirstLetter(pokemon.name)} est né de l'œuf d'accouplement !`
+        : `Un ${this.capitalizeFirstLetter(pokemon.name)} est né !`;
+
+      this.uiView.showRewardModal(
+        pokemon.isShiny ? "Œuf éclos - Pokémon Chromatique !" : "Œuf éclos !",
+        pokemon.isShiny ? pokemon.sprites.front_shiny : pokemon.sprites.front_default,
+        pokemon.isShiny 
+          ? `Incroyable ! ${message} Et il est Chromatique !`
+          : message
+      );
+
+      // Rafraîchir les collections après l'éclosion
+      if (this.mainPresenter) {
+        this.mainPresenter.refreshCollections();
+      }
+
+    } catch (error) {
+      console.error("Erreur lors de l'éclosion:", error);
+      this.uiView.showNotification("Erreur lors de l'éclosion de l'œuf.");
     }
   }
 
