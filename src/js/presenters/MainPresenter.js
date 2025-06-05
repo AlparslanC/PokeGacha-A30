@@ -67,6 +67,11 @@ class MainPresenter {
 
   setupViews() {
     this.pokemonCollectionView.setOnPokemonClick((pokemon) => {
+      // Marquer le Pokémon comme vu avant d'afficher les détails
+      if (pokemon.isNew) {
+        this.appStateModel.markPokemonAsSeen(pokemon.uniqueId);
+        this.saveData(); // Sauvegarder le changement
+      }
       this.showPokemonDetails(pokemon);
     });
 

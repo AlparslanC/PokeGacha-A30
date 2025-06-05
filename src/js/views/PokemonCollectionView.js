@@ -76,6 +76,12 @@ class PokemonCollectionView extends BaseView {
       card.classList.add("shiny");
     }
 
+    if (pokemon.isNew) {
+      card.classList.add("new");
+      const newBadge = this.createElement("span", "new-badge", "Nouveau !");
+      card.appendChild(newBadge);
+    }
+
     // Add duplicate counter if > 1
     const count = pokemonCounts.get(pokemon.name);
     if (count > 1 && !pokemon.isShiny) {

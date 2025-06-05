@@ -72,10 +72,20 @@ class AppStateModel {
         },
         isShiny: pokemon.isShiny || false,
         allTypes: allTypes,
-        mainType: mainType
+        mainType: mainType,
+        isNew: true, // Marquer comme nouveau
+        addedAt: Date.now() // Ajouter un timestamp pour le tri
       };
       
       this.data.pokemons.push(processedPokemon);
+      
+      // Trier la collection par ID Pokédex et nouveauté
+      this.data.pokemons.sort((a, b) => {
+        if (a.isNew && !b.isNew) return -1;
+        if (!a.isNew && b.isNew) return 1;
+        return (a.id || 0) - (b.id || 0);
+      });
+
       console.log('État après ajout:', this.data.pokemons);
       this.notifyObservers('POKEMON_ADDED', processedPokemon);
     }
@@ -149,6 +159,14 @@ class AppStateModel {
     setSelectedPokemonForPhoto(pokemon) {
       this.data.selectedPokemonForPhoto = pokemon;
       this.notifyObservers('SELECTED_POKEMON_UPDATED', pokemon);
+    }
+  
+    markPokemonAsSeen(pokemonId) {
+      const pokemon = this.data.pokemons.find(p => p.uniqueId === pokemonId);
+      if (pokemon && pokemon.isNew) {
+        pokemon.isNew = false;
+        this.notifyObservers('POKEMON_UPDATED', pokemon);
+      }
     }
   
     // Méthodes pour la persistance
