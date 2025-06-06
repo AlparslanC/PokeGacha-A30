@@ -2,7 +2,7 @@
   "name": "PokéGacha",
   "short_name": "PokéGacha",
   "description": "Gacha Pokémon pour le web",
-  "start_url": "/pokemongacha/src/index.html",
+  "start_url": "https://alparslanc.emf-informatique.ch/pokemongacha/src/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#f44336",

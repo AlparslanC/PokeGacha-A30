@@ -7,6 +7,7 @@ class EggCollectionView extends BaseView {
     this.onIncubateClick = null;
     this.onHatchClick = null;
     this.onShakeModeClick = null;
+    this.activeShakeIndex = null; // Nouvel attribut pour suivre l'œuf en mode secouement
   }
 
   render(eggs, progressData) {
@@ -90,11 +91,24 @@ class EggCollectionView extends BaseView {
       card.classList.add("egg-ready");
     } else {
       const shakeButton = this.createElement("button", "shake-btn", "Secouer");
+      // Vérifier si cet œuf est actuellement en mode secouement
+      if (this.activeShakeIndex === index) {
+        shakeButton.classList.add('active');
+        shakeButton.textContent = 'Désactiver le secouement';
+      }
       this.bindEvent(shakeButton, "click", (e) => {
         e.stopPropagation();
         if (this.onShakeModeClick) {
           const isActive = this.onShakeModeClick(index);
-          shakeButton.classList.toggle("active", isActive);
+          if (isActive) {
+            this.activeShakeIndex = index;
+            shakeButton.classList.add('active');
+            shakeButton.textContent = 'Désactiver le secouement';
+          } else {
+            this.activeShakeIndex = null;
+            shakeButton.classList.remove('active');
+            shakeButton.textContent = 'Secouer';
+          }
         }
       });
       actionsDiv.appendChild(shakeButton);
@@ -124,6 +138,7 @@ class EggCollectionView extends BaseView {
         progressText.textContent = `${Math.floor(progress.progress)}%`;
       }
 
+      // Gérer le changement d'état quand l'œuf est prêt
       if (progress.isReady) {
         eggCard.classList.add("egg-ready");
         const actionsDiv = eggCard.querySelector(".egg-actions");
@@ -137,32 +152,49 @@ class EggCollectionView extends BaseView {
             }
           });
         }
+        // Réinitialiser l'index actif si cet œuf était en mode secouement
+        if (this.activeShakeIndex === index) {
+          this.activeShakeIndex = null;
+        }
       } else {
         eggCard.classList.remove("egg-ready");
         const actionsDiv = eggCard.querySelector(".egg-actions");
         if (actionsDiv) {
-          const currentButton = actionsDiv.querySelector(".shake-btn");
-          if (!currentButton) {
-            // Si le bouton n'existe pas, le créer
-            actionsDiv.innerHTML = '<button class="shake-btn">Activer le secouement</button>';
-            const shakeBtn = actionsDiv.querySelector(".shake-btn");
+          let shakeBtn = actionsDiv.querySelector(".shake-btn");
+          
+          // Si le bouton n'existe pas, le créer
+          if (!shakeBtn) {
+            actionsDiv.innerHTML = '<button class="shake-btn">Secouer</button>';
+            shakeBtn = actionsDiv.querySelector(".shake-btn");
+            
+            // Si cet œuf est en mode secouement actif, mettre à jour l'apparence du bouton
+            if (this.activeShakeIndex === index) {
+              shakeBtn.classList.add('active');
+              shakeBtn.textContent = 'Désactiver le secouement';
+            }
+            
             this.bindEvent(shakeBtn, "click", (e) => {
               e.stopPropagation();
               if (this.onShakeModeClick) {
                 const isActive = this.onShakeModeClick(index);
                 if (isActive) {
+                  this.activeShakeIndex = index;
                   shakeBtn.classList.add('active');
                   shakeBtn.textContent = 'Désactiver le secouement';
-                  shakeBtn.dataset.active = 'true';
                 } else {
+                  this.activeShakeIndex = null;
                   shakeBtn.classList.remove('active');
-                  shakeBtn.textContent = 'Activer le secouement';
-                  shakeBtn.dataset.active = 'false';
+                  shakeBtn.textContent = 'Secouer';
                 }
               }
             });
+          } else {
+            // Maintenir l'état du bouton en fonction de l'index actif
+            if (this.activeShakeIndex === index) {
+              shakeBtn.classList.add('active');
+              shakeBtn.textContent = 'Désactiver le secouement';
+            }
           }
-          // Ne rien faire si le bouton existe déjà - préserver son état
         }
       }
     });

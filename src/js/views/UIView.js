@@ -37,8 +37,8 @@ class UIView extends BaseView {
     // Mettre à jour le minuteur des Pokéballs
     const timerElement = document.getElementById('pokeball-timer');
     if (timerElement) {
-      if (pokeballs >= 5) {
-        timerElement.textContent = '5 / Max';
+      if (pokeballs >= 10) {
+        timerElement.textContent = '10 / Max';
       } else if (nextPokeballTime) {
         const timeLeft = nextPokeballTime - Date.now();
         if (timeLeft <= 0) {

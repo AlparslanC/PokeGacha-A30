@@ -2,7 +2,9 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>PokéGacha</title>
     <link rel="stylesheet" href="css/style.css" />
     <link rel="manifest" href="manifest.json" />
@@ -68,7 +70,7 @@
             </button>
           </div>
           <div class="camera-wrapper">
-            <video id="camera-view" autoplay playsinline></video>
+            <video id="camera-view" autoplay playsinline style="touch-action: none;"></video>
             <canvas id="camera-canvas"></canvas>
           </div>
           <button id="take-photo" class="action-button">

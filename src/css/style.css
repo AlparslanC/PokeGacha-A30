@@ -320,6 +320,10 @@ main {
   width: 100%;
   max-width: 600px;
   height: 450px;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 #camera-view {
@@ -330,6 +334,10 @@ main {
   object-fit: cover;
   background-color: #333;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 #camera-canvas {
@@ -337,9 +345,16 @@ main {
   top: 0;
   left: 50%;
   transform: translateX(-50%);
+  width: 100%;
+  max-width: 600px;
+  height: 450px;
   border-radius: 15px;
   pointer-events: none;
   z-index: 1;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 #preview-canvas {
@@ -1365,4 +1380,146 @@ main {
   font-size: 0.7rem;
   color: #333;
   font-weight: 500;
+}
+
+/* Media queries pour mobile */
+@media (max-width: 480px) {
+  /* Header */
+  header h1 {
+    font-size: 1.5rem;
+  }
+
+  .stats {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .stat-item {
+    font-size: 0.9rem;
+  }
+
+  /* Main content */
+  main {
+    padding: 0.5rem;
+  }
+
+  /* Tabs */
+  .tabs {
+    flex-direction: column;
+    border-radius: 10px;
+  }
+
+  .tab {
+    padding: 0.5rem;
+  }
+
+  /* Collections */
+  .pokemon-collection,
+  .egg-collection {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+    padding: 0.25rem;
+  }
+
+  .pokemon-card,
+  .egg-card {
+    padding: 5px;
+  }
+
+  .pokemon-card h3,
+  .egg-card h3 {
+    font-size: 0.8rem;
+  }
+
+  /* Camera view */
+  .camera-wrapper {
+    height: 300px;
+  }
+
+  #camera-view,
+  #camera-canvas {
+    height: 300px;
+  }
+
+  .pokemon-position-controls {
+    gap: 0.25rem;
+  }
+
+  .control-button {
+    min-width: 35px;
+    min-height: 35px;
+    font-size: 1rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  #take-photo {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 11;
+    padding: 0.75rem 2rem;
+  }
+
+  .pokemon-selection {
+    margin: 0.5rem 0;
+    padding: 0.5rem;
+    gap: 0.25rem;
+  }
+
+  .pokemon-option {
+    width: 50px;
+    height: 50px;
+    margin: 2px;
+  }
+
+  /* Modal */
+  .modal-content {
+    padding: 1rem;
+    width: 90%;
+  }
+
+  .modal-image {
+    width: 150px;
+    height: 150px;
+  }
+
+  /* Evolution controls */
+  .evolution-controls {
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.5rem;
+  }
+
+  .select-duplicates-btn,
+  .evolve-btn,
+  .breed-btn {
+    min-width: 100%;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  /* Photos gallery */
+  .photos-gallery {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+    padding: 0.5rem;
+  }
+
+  .photo-container {
+    padding: 0.5rem;
+    margin: 0;
+    gap: 0.5rem;
+  }
+
+  /* Pokemon selection */
+  .pokemon-selection {
+    gap: 0.25rem;
+    padding: 0.5rem;
+  }
+
+  .pokemon-option {
+    width: 50px;
+    height: 50px;
+  }
 }

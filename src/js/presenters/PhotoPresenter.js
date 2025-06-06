@@ -28,6 +28,22 @@ class PhotoPresenter {
       switchCameraBtn.addEventListener("click", () => this.switchCamera());
     }
 
+    // Désactiver le zoom et les gestes tactiles indésirables
+    const cameraView = document.getElementById("camera-view");
+    if (cameraView) {
+      cameraView.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+      }, { passive: false });
+      
+      cameraView.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+      }, { passive: false });
+      
+      cameraView.addEventListener('touchend', (e) => {
+        e.preventDefault();
+      }, { passive: false });
+    }
+
     // Créer et configurer le canvas de prévisualisation
     this.previewCanvas.style.position = 'absolute';
     this.previewCanvas.style.top = '0';
@@ -44,30 +60,67 @@ class PhotoPresenter {
     const moveStep = 0.05;
     const sizeStep = 0.05;
 
-    document.getElementById("move-up")?.addEventListener("click", () => {
+    // Fonction pour empêcher le comportement par défaut des événements tactiles
+    const preventDefaultTouch = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    // Fonction pour ajouter les gestionnaires d'événements à un bouton
+    const setupButton = (buttonId, action) => {
+      const button = document.getElementById(buttonId);
+      if (button) {
+        // Désactiver le comportement par défaut pour tous les événements tactiles
+        button.addEventListener('touchstart', preventDefaultTouch, { passive: false });
+        button.addEventListener('touchmove', preventDefaultTouch, { passive: false });
+        button.addEventListener('touchend', preventDefaultTouch, { passive: false });
+        
+        // Gérer les clics et les touches
+        button.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          action();
+        });
+        
+        button.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          action();
+        });
+      }
+    };
+
+    // Configuration des boutons de déplacement
+    setupButton("move-up", () => {
       this.pokemonPosition.y = Math.max(0.1, this.pokemonPosition.y - moveStep);
     });
 
-    document.getElementById("move-down")?.addEventListener("click", () => {
+    setupButton("move-down", () => {
       this.pokemonPosition.y = Math.min(0.9, this.pokemonPosition.y + moveStep);
     });
 
-    document.getElementById("move-left")?.addEventListener("click", () => {
+    setupButton("move-left", () => {
       this.pokemonPosition.x = Math.max(0.1, this.pokemonPosition.x - moveStep);
     });
 
-    document.getElementById("move-right")?.addEventListener("click", () => {
+    setupButton("move-right", () => {
       this.pokemonPosition.x = Math.min(0.9, this.pokemonPosition.x + moveStep);
     });
 
-    // Contrôles de taille
-    document.getElementById("size-up")?.addEventListener("click", () => {
+    // Configuration des boutons de taille
+    setupButton("size-up", () => {
       this.pokemonSize = Math.min(0.5, this.pokemonSize + sizeStep);
     });
 
-    document.getElementById("size-down")?.addEventListener("click", () => {
+    setupButton("size-down", () => {
       this.pokemonSize = Math.max(0.1, this.pokemonSize - sizeStep);
     });
+
+    // Désactiver le zoom sur le conteneur des contrôles
+    const controlsContainer = document.querySelector('.pokemon-position-controls');
+    if (controlsContainer) {
+      controlsContainer.addEventListener('touchstart', preventDefaultTouch, { passive: false });
+      controlsContainer.addEventListener('touchmove', preventDefaultTouch, { passive: false });
+      controlsContainer.addEventListener('touchend', preventDefaultTouch, { passive: false });
+    }
   }
 
   async switchCamera() {
@@ -101,7 +154,7 @@ class PhotoPresenter {
             // Ajuster la taille du canvas pour correspondre à la vidéo
             const videoAspectRatio = cameraView.videoWidth / cameraView.videoHeight;
             const maxWidth = 600; // Largeur maximale définie dans le CSS
-            const maxHeight = 450; // Hauteur maximale définie dans le CSS
+            const maxHeight = window.innerWidth <= 480 ? 300 : 450; // Hauteur maximale selon le device
             
             let width = maxWidth;
             let height = width / videoAspectRatio;
@@ -162,17 +215,27 @@ class PhotoPresenter {
         }
 
         if (this.pokemonImage && this.pokemonImage.complete) {
-          const pokemonSize = Math.min(this.previewCanvas.height, this.previewCanvas.width) * this.pokemonSize;
-          const posX = (this.previewCanvas.width * this.pokemonPosition.x) - (pokemonSize / 2);
-          const posY = (this.previewCanvas.height * this.pokemonPosition.y) - (pokemonSize / 2);
+          // Calculer la taille maximale du Pokémon en fonction de la taille du canvas
+          const maxSize = Math.min(this.previewCanvas.width, this.previewCanvas.height) * this.pokemonSize;
+          const pokemonSize = maxSize;
+
+          // Calculer les limites pour garder le Pokémon dans le cadre
+          const minX = pokemonSize / 2;
+          const maxX = this.previewCanvas.width - pokemonSize / 2;
+          const minY = pokemonSize / 2;
+          const maxY = this.previewCanvas.height - pokemonSize / 2;
+
+          // Calculer la position en respectant les limites
+          const posX = Math.min(Math.max(this.previewCanvas.width * this.pokemonPosition.x, minX), maxX);
+          const posY = Math.min(Math.max(this.previewCanvas.height * this.pokemonPosition.y, minY), maxY);
 
           if (this.facingMode === "user") {
             this.previewContext.save();
             this.previewContext.scale(-1, 1);
             this.previewContext.drawImage(
               this.pokemonImage,
-              -posX - pokemonSize,
-              posY,
+              -posX - pokemonSize / 2,
+              posY - pokemonSize / 2,
               pokemonSize,
               pokemonSize
             );
@@ -180,8 +243,8 @@ class PhotoPresenter {
           } else {
             this.previewContext.drawImage(
               this.pokemonImage,
-              posX,
-              posY,
+              posX - pokemonSize / 2,
+              posY - pokemonSize / 2,
               pokemonSize,
               pokemonSize
             );

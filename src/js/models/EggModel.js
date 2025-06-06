@@ -3,7 +3,7 @@ class EggModel {
     constructor() {
       this.MIN_HATCH_TIME = 600000; // 10 minutes en millisecondes
       this.MAX_HATCH_TIME = 1800000; // 30 minutes en millisecondes
-      this.SHAKE_BONUS = 10; // Bonus de progression pour le secouement
+      this.SHAKE_REDUCTION = 60000; // Chaque secouement réduit de 60 secondes le temps d'éclosion
     }
   
     createEgg(parentPokemon = null) {
@@ -18,6 +18,7 @@ class EggModel {
         lastShake: now,
         progress: 0,
         hatchTime: hatchTime,
+        currentHatchTime: hatchTime, // Nouveau: temps d'éclosion actuel qui sera réduit
         isBreedingEgg: parentPokemon !== null,
         parentPokemon: parentPokemon
       };
@@ -38,28 +39,18 @@ class EggModel {
   
       const now = Date.now();
       const timePassed = now - egg.createdAt;
-      const hatchTime = egg.hatchTime || this.MAX_HATCH_TIME; // Utiliser le temps spécifique de l'œuf ou le maximum par défaut
+      const currentHatchTime = egg.currentHatchTime || egg.hatchTime;
 
       console.log("Time values:", {
         now,
         createdAt: egg.createdAt,
         timePassed,
-        hatchTime: hatchTime
+        currentHatchTime: currentHatchTime
       });
   
-      let progress = (timePassed / hatchTime) * 100;
-  
-      // Ajouter le bonus de secouement si applicable
-      if (egg.lastShake) {
-        const shakeBonus = ((now - egg.lastShake) / hatchTime) * this.SHAKE_BONUS;
-        console.log("Shake bonus:", {
-          lastShake: egg.lastShake,
-          shakeBonus,
-          newProgress: progress + shakeBonus
-        });
-        progress += shakeBonus;
-      }
-  
+      // Calculer la progression basée sur le temps d'éclosion actuel
+      let progress = (timePassed / currentHatchTime) * 100;
+      
       // Limiter la progression à 100%
       progress = Math.min(progress, 100);
       
@@ -67,8 +58,8 @@ class EggModel {
       if (isNaN(progress)) {
         console.error("Progress calculation resulted in NaN:", {
           timePassed,
-          hatchTime: hatchTime,
-          initialProgress: (timePassed / hatchTime) * 100
+          currentHatchTime: currentHatchTime,
+          initialProgress: (timePassed / currentHatchTime) * 100
         });
         progress = 0;
       }
@@ -87,9 +78,16 @@ class EggModel {
   
     incubateEgg(egg) {
       const now = Date.now();
+      // Réduire le temps d'éclosion actuel
+      const newHatchTime = Math.max(
+        egg.currentHatchTime - this.SHAKE_REDUCTION, 
+        this.MIN_HATCH_TIME / 2
+      ); // Ne pas descendre en dessous de 5 minutes
+      
       return {
         ...egg,
-        lastShake: now
+        lastShake: now,
+        currentHatchTime: newHatchTime
       };
     }
   

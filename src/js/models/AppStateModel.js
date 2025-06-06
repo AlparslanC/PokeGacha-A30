@@ -3,8 +3,8 @@ class AppStateModel {
     constructor() {
       // Initialiser les cooldowns avant tout
       this.breedingCooldownTime = 1800000; // 30 minutes en millisecondes
-      this.pokeballRechargeTime = 2700000; // 45 minutes en millisecondes (45 * 60 * 1000)
-      this.maxPokeballs = 5;
+      this.pokeballRechargeTime = 1800000; // 30 minutes en millisecondes (30 * 60 * 1000)
+      this.maxPokeballs = 10;
 
       // Charger l'état du jeu
       const savedState = localStorage.getItem('gameState');
@@ -19,7 +19,7 @@ class AppStateModel {
           pokemons: gameState.pokemons || [],
           eggs: gameState.eggs || [],
           photos: gameState.photos || [],
-          userPokeballs: gameState.userPokeballs !== undefined ? gameState.userPokeballs : 3,
+          userPokeballs: gameState.userPokeballs !== undefined ? gameState.userPokeballs : 5,
           lastPokeballTime: gameState.lastPokeballTime || Date.now(),
           breedingCooldowns: gameState.breedingCooldowns || {},
           cameraStream: null,
@@ -48,7 +48,7 @@ class AppStateModel {
           pokemons: [],
           eggs: [],
           photos: [],
-          userPokeballs: 3,
+          userPokeballs: 5,
           lastPokeballTime: Date.now(),
           breedingCooldowns: {},
           cameraStream: null,
@@ -460,7 +460,7 @@ class AppStateModel {
           pokemons: processedPokemons,
           eggs: processedEggs,
           photos: data.photos || [],
-          userPokeballs: data.userPokeballs || 10,
+          userPokeballs: data.userPokeballs || 5,
           breedingCooldowns: {}
         };
 
@@ -550,5 +550,14 @@ class AppStateModel {
         return null;
       }
       return this.data.lastPokeballTime + this.pokeballRechargeTime;
+    }
+
+    checkAndAddPokeball() {
+      const nextPokeballTime = this.getNextPokeballTime();
+      if (nextPokeballTime && Date.now() >= nextPokeballTime) {
+        this.incrementPokeballs();
+        return true;
+      }
+      return false;
     }
   }
