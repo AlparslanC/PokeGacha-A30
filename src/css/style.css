@@ -53,6 +53,28 @@ header h1 {
   object-fit: contain;
 }
 
+/* Supprimer les styles spéciaux du timer et utiliser un style uniforme */
+#pokeball-count, #pokemon-count, #egg-count, #pokeball-timer {
+  color: white;
+  font-size: 1rem;
+}
+
+#pokeball-count {
+  display: none; /* On garde celui-ci caché car on utilise le timer */
+}
+
+.pokeball-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Style commun pour tous les compteurs */
+.stat-number {
+  color: white;
+  font-size: 1rem;
+}
+
 /* Main content area */
 main {
   flex: 1;

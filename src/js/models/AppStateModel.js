@@ -3,11 +3,13 @@ class AppStateModel {
     constructor() {
       // Initialiser les cooldowns avant tout
       this.breedingCooldownTime = 1800000; // 30 minutes en millisecondes
+      this.pokeballRechargeTime = 2700000; // 45 minutes en millisecondes (45 * 60 * 1000)
+      this.maxPokeballs = 5;
 
       // Charger l'état du jeu
       const savedState = localStorage.getItem('gameState');
       console.log('État sauvegardé chargé:', savedState);
-      
+       
       try {
         // Charger l'état général du jeu
         const gameState = savedState ? JSON.parse(savedState) : {};
@@ -18,6 +20,7 @@ class AppStateModel {
           eggs: gameState.eggs || [],
           photos: gameState.photos || [],
           userPokeballs: gameState.userPokeballs !== undefined ? gameState.userPokeballs : 3,
+          lastPokeballTime: gameState.lastPokeballTime || Date.now(),
           breedingCooldowns: {},
           cameraStream: null,
           selectedPokemonForPhoto: null,
@@ -65,6 +68,7 @@ class AppStateModel {
           eggs: [],
           photos: [],
           userPokeballs: 3,
+          lastPokeballTime: Date.now(),
           breedingCooldowns: {},
           cameraStream: null,
           selectedPokemonForPhoto: null,
@@ -263,8 +267,14 @@ class AppStateModel {
     }
   
     incrementPokeballs() {
-      this.data.userPokeballs++;
-      this.notifyObservers('POKEBALLS_UPDATED', this.data.userPokeballs);
+      if (this.data.userPokeballs < this.maxPokeballs) {
+        this.data.userPokeballs++;
+        this.data.lastPokeballTime = Date.now();
+        this.notifyObservers('POKEBALLS_UPDATED', {
+          count: this.data.userPokeballs,
+          nextPokeballTime: this.getNextPokeballTime()
+        });
+      }
     }
   
     setCameraStream(stream) {
@@ -506,6 +516,7 @@ class AppStateModel {
         eggs: this.data.eggs,
         photos: this.data.photos,
         userPokeballs: this.data.userPokeballs,
+        lastPokeballTime: this.data.lastPokeballTime,
         breedingCooldowns: this.data.breedingCooldowns
       };
       
@@ -543,5 +554,12 @@ class AppStateModel {
       if (hasChanges) {
         this.serialize();
       }
+    }
+
+    getNextPokeballTime() {
+      if (this.data.userPokeballs >= this.maxPokeballs) {
+        return null;
+      }
+      return this.data.lastPokeballTime + this.pokeballRechargeTime;
     }
   }

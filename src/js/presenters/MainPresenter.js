@@ -284,19 +284,24 @@ class MainPresenter {
       this.updateEggProgress();
     }, 1000);
 
+    // Mettre à jour le minuteur des Pokéballs toutes les secondes
+    setInterval(() => {
+      this.renderCounters();
+    }, 1000); // Mise à jour toutes les secondes au lieu de toutes les minutes
+
     // Sauvegarder les données périodiquement (toutes les 30 secondes)
     setInterval(() => {
       this.saveData();
     }, 30000);
 
-    // Ajouter des Pokéballs périodiquement (1 toutes les 2 heures)
+    // Ajouter des Pokéballs périodiquement (1 toutes les 45 minutes)
     setInterval(() => {
       if (this.appStateModel.getUserPokeballs() < 5) {  // Limite maximale réduite à 5
         this.appStateModel.incrementPokeballs();
         this.uiView.showNotification("Vous avez reçu une nouvelle Pokéball !");
         this.saveData();
       }
-    }, 7200000); // 2 heures (2 * 60 * 60 * 1000 ms)
+    }, 2700000); // 45 minutes (45 * 60 * 1000 ms)
   }
 
   updateEggProgress() {
@@ -353,7 +358,8 @@ class MainPresenter {
     this.uiView.updateCounters(
       this.appStateModel.getUserPokeballs(),
       this.appStateModel.getPokemons().length,
-      this.appStateModel.getEggs().length
+      this.appStateModel.getEggs().length,
+      this.appStateModel.getNextPokeballTime()
     );
   }
 

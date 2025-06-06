@@ -23,7 +23,7 @@ class UIView extends BaseView {
     };
   }
 
-  updateCounters(pokeballs, pokemonCount, eggCount) {
+  updateCounters(pokeballs, pokemonCount, eggCount, nextPokeballTime = null) {
     if (this.elements.pokeballCount) {
       this.elements.pokeballCount.textContent = pokeballs;
     }
@@ -32,6 +32,25 @@ class UIView extends BaseView {
     }
     if (this.elements.eggCount) {
       this.elements.eggCount.textContent = eggCount;
+    }
+    
+    // Mettre à jour le minuteur des Pokéballs
+    const timerElement = document.getElementById('pokeball-timer');
+    if (timerElement) {
+      if (pokeballs >= 5) {
+        timerElement.textContent = '5 / Max';
+      } else if (nextPokeballTime) {
+        const timeLeft = nextPokeballTime - Date.now();
+        if (timeLeft <= 0) {
+          timerElement.textContent = `${pokeballs} / Prêt`;
+        } else {
+          const minutes = Math.floor(timeLeft / 60000);
+          const seconds = Math.floor((timeLeft % 60000) / 1000);
+          timerElement.textContent = `${pokeballs} / ${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+      } else {
+        timerElement.textContent = `${pokeballs} / --:--`;
+      }
     }
   }
 
