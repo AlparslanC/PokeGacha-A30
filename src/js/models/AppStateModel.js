@@ -8,6 +8,7 @@ class AppStateModel {
 
       // Charger l'état du jeu
       const savedState = localStorage.getItem('gameState');
+      const isFirstVisit = !localStorage.getItem('hasVisited');
       console.log('État sauvegardé chargé:', savedState);
        
       try {
@@ -19,12 +20,18 @@ class AppStateModel {
           pokemons: gameState.pokemons || [],
           eggs: gameState.eggs || [],
           photos: gameState.photos || [],
-          userPokeballs: gameState.userPokeballs !== undefined ? gameState.userPokeballs : 5,
+          userPokeballs: gameState.userPokeballs !== undefined ? gameState.userPokeballs : (isFirstVisit ? 5 : 0),
           lastPokeballTime: gameState.lastPokeballTime || Date.now(),
           breedingCooldowns: gameState.breedingCooldowns || {},
+          candyCount: gameState.candyCount || 0,
           cameraStream: null,
           selectedPokemonForPhoto: null,
         };
+
+        // Marquer comme visité après l'initialisation
+        if (isFirstVisit) {
+          localStorage.setItem('hasVisited', 'true');
+        }
 
         // Nettoyer les cooldowns expirés
         const now = Date.now();
@@ -48,12 +55,18 @@ class AppStateModel {
           pokemons: [],
           eggs: [],
           photos: [],
-          userPokeballs: 5,
+          userPokeballs: isFirstVisit ? 5 : 0,
           lastPokeballTime: Date.now(),
           breedingCooldowns: {},
+          candyCount: 0,
           cameraStream: null,
           selectedPokemonForPhoto: null,
         };
+
+        // Marquer comme visité même en cas d'erreur
+        if (isFirstVisit) {
+          localStorage.setItem('hasVisited', 'true');
+        }
       }
       
       this.observers = [];
@@ -86,6 +99,9 @@ class AppStateModel {
     getUserPokeballs() { return this.data.userPokeballs; }
     getCameraStream() { return this.data.cameraStream; }
     getSelectedPokemonForPhoto() { return this.data.selectedPokemonForPhoto; }
+    getCandyCount() {
+      return this.data.candyCount;
+    }
   
     // Setters avec notification
     addPokemon(pokemon) {
@@ -460,7 +476,7 @@ class AppStateModel {
           pokemons: processedPokemons,
           eggs: processedEggs,
           photos: data.photos || [],
-          userPokeballs: data.userPokeballs || 5,
+          userPokeballs: data.userPokeballs || 0,
           breedingCooldowns: {}
         };
 
@@ -496,21 +512,18 @@ class AppStateModel {
     }
   
     serialize() {
-      const state = {
+      const serializedData = {
         pokemons: this.data.pokemons,
         eggs: this.data.eggs,
         photos: this.data.photos,
         userPokeballs: this.data.userPokeballs,
         lastPokeballTime: this.data.lastPokeballTime,
-        breedingCooldowns: this.data.breedingCooldowns
+        breedingCooldowns: this.data.breedingCooldowns,
+        candyCount: this.data.candyCount
       };
       
-      try {
-        localStorage.setItem('gameState', JSON.stringify(state));
-        console.log('État sauvegardé:', state);
-      } catch (error) {
-        console.error('Erreur lors de la sauvegarde de l\'état:', error);
-      }
+      localStorage.setItem('gameState', JSON.stringify(serializedData));
+      return serializedData;
     }
   
     // Méthode pour régénérer les uniqueIds pour tous les Pokemon
@@ -559,5 +572,23 @@ class AppStateModel {
         return true;
       }
       return false;
+    }
+
+    incrementCandyCount(amount) {
+      this.data.candyCount += amount;
+      this.notifyObservers("CANDY_UPDATED");
+    }
+
+    decrementCandyCount(amount) {
+      if (this.data.candyCount >= amount) {
+        this.data.candyCount -= amount;
+        this.notifyObservers("CANDY_UPDATED");
+        return true;
+      }
+      return false;
+    }
+
+    getPokemonById(uniqueId) {
+      return this.data.pokemons.find(p => p.uniqueId === uniqueId);
     }
   }

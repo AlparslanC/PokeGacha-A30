@@ -5,6 +5,7 @@ class MainPresenter {
     this.pokemonModel = new PokemonModel();
     this.eggModel = new EggModel();
     this.storageModel = new StorageModel();
+    this.shopModel = new ShopModel(this.appStateModel, this.pokemonModel);
 
     this.uiView = new UIView();
     this.pokemonCollectionView = new PokemonCollectionView(
@@ -20,6 +21,7 @@ class MainPresenter {
     this.photoCollectionView = new PhotoCollectionView(
       document.getElementById("photos-list")
     );
+    this.shopView = new ShopView(document.getElementById("shop-container"));
 
     this.gameLogicPresenter = new GameLogicPresenter(
       this.appStateModel,
@@ -32,6 +34,9 @@ class MainPresenter {
     this.photoPresenter = new PhotoPresenter(this.appStateModel, this.uiView);
 
     this.init();
+
+    // Ajouter la modal de confirmation
+    this.setupConfirmModal();
   }
 
   init() {
@@ -193,6 +198,54 @@ class MainPresenter {
       }
     });
 
+    this.pokemonCollectionView.setOnDeleteSelect(async (selectedIds) => {
+      try {
+        if (selectedIds.length === 0) {
+          throw new Error("Aucun Pokémon sélectionné pour la suppression");
+        }
+
+        // Récupérer les Pokémon sélectionnés
+        const selectedPokemons = selectedIds.map(id => {
+          const pokemon = this.appStateModel.getPokemonById(id);
+          if (!pokemon) {
+            throw new Error(`Pokémon introuvable avec l'ID: ${id}`);
+          }
+          return pokemon;
+        });
+
+        // Afficher la modal de confirmation
+        this.showConfirmModal(selectedPokemons, async () => {
+          try {
+            this.uiView.showLoader();
+
+            // Supprimer les Pokémon
+            selectedIds.forEach(id => {
+              this.appStateModel.removePokemon(id);
+            });
+            
+            // Ajouter les bonbons (1 par Pokémon)
+            this.appStateModel.incrementCandyCount(selectedIds.length);
+
+            // Afficher un message de confirmation
+            this.uiView.showNotification(`${selectedIds.length} Pokémon ont été supprimés. Vous avez reçu ${selectedIds.length} bonbon${selectedIds.length > 1 ? 's' : ''} !`);
+
+            // Rafraîchir l'affichage
+            this.refreshCollections({ pokemon: true, counters: true });
+            this.saveData();
+          } catch (error) {
+            console.error("Erreur lors de la suppression:", error);
+            this.uiView.showNotification(error.message);
+          } finally {
+            this.uiView.hideLoader();
+          }
+        });
+
+      } catch (error) {
+        console.error("Erreur lors de la suppression:", error);
+        this.uiView.showNotification(error.message);
+      }
+    });
+
     this.eggCollectionView.setOnHatchClick((index) => {
       this.gameLogicPresenter.hatchEgg(index);
     });
@@ -204,6 +257,33 @@ class MainPresenter {
 
     this.photoCollectionView.setOnPhotoClick((photo) => {
       this.showPhotoDetails(photo);
+    });
+
+    // Configuration de la vue du shop
+    this.shopView.setOnBuyPokeball(async () => {
+      try {
+        const result = await this.shopModel.buyPokeball();
+        this.uiView.showNotification(result.message);
+        this.refreshCollections({ counters: true });
+        this.renderShop();
+      } catch (error) {
+        this.uiView.showNotification(error.message);
+      }
+    });
+
+    this.shopView.setOnBuyShiny(async () => {
+      try {
+        const result = await this.shopModel.buyShinyPokemon();
+        this.uiView.showRewardModal(
+          "Nouveau Pokémon Shiny !",
+          result.pokemon.sprites.front_default,
+          result.message
+        );
+        this.refreshCollections({ pokemon: true, counters: true });
+        this.renderShop();
+      } catch (error) {
+        this.uiView.showNotification(error.message);
+      }
     });
   }
 
@@ -352,6 +432,7 @@ class MainPresenter {
     this.renderPokemonCollection();
     this.renderEggCollection();
     this.renderPhotoCollection();
+    this.renderShop();
   }
 
   renderCounters() {
@@ -362,7 +443,8 @@ class MainPresenter {
       this.appStateModel.getUserPokeballs(),
       this.appStateModel.getPokemons().length,
       this.appStateModel.getEggs().length,
-      this.appStateModel.getNextPokeballTime()
+      this.appStateModel.getNextPokeballTime(),
+      this.appStateModel.getCandyCount()
     );
   }
 
@@ -382,6 +464,10 @@ class MainPresenter {
 
   renderPhotoCollection() {
     this.photoCollectionView.render(this.appStateModel.getPhotos());
+  }
+
+  renderShop() {
+    this.shopView.render(this.appStateModel.getCandyCount());
   }
 
   async showPokemonDetails(pokemon) {
@@ -526,7 +612,9 @@ class MainPresenter {
         this.saveData();
         break;
       case "POKEBALLS_UPDATED":
+      case "CANDY_UPDATED":
         this.refreshCollections({ counters: true });
+        this.renderShop();
         this.saveData();
         break;
       case "STATE_HYDRATED":
@@ -575,5 +663,70 @@ class MainPresenter {
       "images/egg.png",
       `Les ${this.capitalizeFirstLetter(pokemon1.name)} et ${this.capitalizeFirstLetter(pokemon2.name)} ont créé un œuf !`
     );
+  }
+
+  setupConfirmModal() {
+    // Créer la modal de confirmation
+    const modal = document.createElement('div');
+    modal.className = 'confirm-modal';
+    modal.id = 'confirm-modal';
+    modal.innerHTML = `
+      <div class="confirm-content">
+        <h2 class="confirm-title">Confirmer la suppression</h2>
+        <div class="confirm-message"></div>
+        <div class="confirm-pokemon-list"></div>
+        <div class="confirm-reward"></div>
+        <div class="confirm-buttons">
+          <button class="confirm-cancel">Annuler</button>
+          <button class="confirm-delete">Supprimer</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Gérer les événements de la modal
+    const cancelBtn = modal.querySelector('.confirm-cancel');
+    const deleteBtn = modal.querySelector('.confirm-delete');
+    
+    cancelBtn.addEventListener('click', () => {
+      modal.classList.remove('active');
+    });
+
+    // Le gestionnaire pour le bouton de suppression sera ajouté dynamiquement
+  }
+
+  showConfirmModal(selectedPokemons, onConfirm) {
+    const modal = document.getElementById('confirm-modal');
+    const messageDiv = modal.querySelector('.confirm-message');
+    const listDiv = modal.querySelector('.confirm-pokemon-list');
+    const rewardDiv = modal.querySelector('.confirm-reward');
+    const deleteBtn = modal.querySelector('.confirm-delete');
+
+    // Mettre à jour le contenu
+    messageDiv.textContent = `Vous êtes sur le point de supprimer ${selectedPokemons.length} Pokémon.`;
+
+    // Afficher la liste des Pokémon
+    listDiv.innerHTML = selectedPokemons.map(pokemon => `
+      <div class="confirm-pokemon-item">
+        <img src="${pokemon.sprites.front_default}" alt="${pokemon.name}">
+        <span>${this.capitalizeFirstLetter(pokemon.name)}</span>
+      </div>
+    `).join('');
+
+    // Afficher la récompense
+    const candyReward = selectedPokemons.length;
+    rewardDiv.innerHTML = `
+      <img src="images/super-bonbon.png" alt="Super Bonbon">
+      <span>Vous recevrez ${candyReward} bonbon${candyReward > 1 ? 's' : ''}</span>
+    `;
+
+    // Mettre à jour le gestionnaire du bouton de suppression
+    deleteBtn.onclick = () => {
+      onConfirm();
+      modal.classList.remove('active');
+    };
+
+    // Afficher la modal
+    modal.classList.add('active');
   }
 }

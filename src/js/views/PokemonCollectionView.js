@@ -7,6 +7,7 @@ class PokemonCollectionView extends BaseView {
     this.onPokemonClick = null;
     this.onEvolutionSelect = null;
     this.onBreedingSelect = null;
+    this.onDeleteSelect = null;  // Nouveau callback pour la suppression
     this.isSelectionMode = false;
     this.selectedPokemon = new Set();
     this.currentPokemonType = null;
@@ -76,10 +77,15 @@ class PokemonCollectionView extends BaseView {
     // Bouton d'accouplement
     const breedButton = this.createElement("button", "breed-btn", "Accoupler");
     this.bindEvent(breedButton, "click", () => this.breedSelected());
+
+    // Bouton de suppression
+    const deleteButton = this.createElement("button", "delete-btn", "Supprimer");
+    this.bindEvent(deleteButton, "click", () => this.deleteSelected());
     
     controls.appendChild(selectButton);
     controls.appendChild(evolveButton);
     controls.appendChild(breedButton);
+    controls.appendChild(deleteButton);
     
     return controls;
   }
@@ -228,14 +234,7 @@ class PokemonCollectionView extends BaseView {
     // Second pass: mark selectable cards
     cards.forEach(card => {
       if (!card.classList.contains("shiny")) {
-        const pokemonName = card.dataset.name;
-        const count = duplicateCount.get(pokemonName) || 0;
-        
-        if (count > 1) {
-          card.classList.add("selectable");
-        } else {
-          card.classList.add("not-selectable");
-        }
+        card.classList.add("selectable");
       } else {
         card.classList.add("not-selectable");
       }
@@ -268,16 +267,6 @@ class PokemonCollectionView extends BaseView {
       return;
     }
     
-    if (this.currentPokemonType && pokemon.name !== this.currentPokemonType) {
-      this.selectedPokemon.clear();
-      this.container.querySelectorAll(".pokemon-card.selected").forEach(card => {
-        card.classList.remove("selected");
-      });
-      this.currentPokemonType = pokemon.name;
-    } else if (!this.currentPokemonType) {
-      this.currentPokemonType = pokemon.name;
-    }
-    
     const pokemonId = card.dataset.id;
     
     if (card.classList.contains("selected")) {
@@ -298,6 +287,7 @@ class PokemonCollectionView extends BaseView {
   updateActionButtons() {
     const evolveButton = document.querySelector(".evolve-btn");
     const breedButton = document.querySelector(".breed-btn");
+    const deleteButton = document.querySelector(".delete-btn");
     
     if (evolveButton) {
       evolveButton.classList.toggle("active", this.selectedPokemon.size >= 2);
@@ -305,6 +295,10 @@ class PokemonCollectionView extends BaseView {
     
     if (breedButton) {
       breedButton.classList.toggle("active", this.selectedPokemon.size === 2);
+    }
+
+    if (deleteButton) {
+      deleteButton.classList.toggle("active", this.selectedPokemon.size > 0);
     }
   }
 
@@ -323,6 +317,14 @@ class PokemonCollectionView extends BaseView {
     }
   }
 
+  deleteSelected() {
+    if (this.selectedPokemon.size > 0 && this.onDeleteSelect) {
+      this.onDeleteSelect(Array.from(this.selectedPokemon));
+      this.disableSelectionMode();
+      document.querySelector(".select-duplicates-btn")?.classList.remove("active");
+    }
+  }
+
   setOnPokemonClick(callback) {
     this.onPokemonClick = callback;
   }
@@ -333,6 +335,10 @@ class PokemonCollectionView extends BaseView {
 
   setOnBreedingSelect(callback) {
     this.onBreedingSelect = callback;
+  }
+
+  setOnDeleteSelect(callback) {
+    this.onDeleteSelect = callback;
   }
 
   capitalizeFirstLetter(string) {

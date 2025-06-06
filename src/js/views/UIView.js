@@ -23,34 +23,36 @@ class UIView extends BaseView {
     };
   }
 
-  updateCounters(pokeballs, pokemonCount, eggCount, nextPokeballTime = null) {
-    if (this.elements.pokeballCount) {
-      this.elements.pokeballCount.textContent = pokeballs;
-    }
-    if (this.elements.pokemonCount) {
-      this.elements.pokemonCount.textContent = pokemonCount;
-    }
-    if (this.elements.eggCount) {
-      this.elements.eggCount.textContent = eggCount;
-    }
-    
-    // Mettre à jour le minuteur des Pokéballs
-    const timerElement = document.getElementById('pokeball-timer');
-    if (timerElement) {
-      if (pokeballs >= 10) {
-        timerElement.textContent = '10 / Max';
-      } else if (nextPokeballTime) {
-        const timeLeft = nextPokeballTime - Date.now();
-        if (timeLeft <= 0) {
-          timerElement.textContent = `${pokeballs} / Prêt`;
-        } else {
-          const minutes = Math.floor(timeLeft / 60000);
-          const seconds = Math.floor((timeLeft % 60000) / 1000);
-          timerElement.textContent = `${pokeballs} / ${minutes}:${seconds.toString().padStart(2, '0')}`;
-        }
+  updateCounters(pokeballCount, pokemonCount, eggCount, nextPokeballTime, candyCount) {
+    // Mettre à jour le compteur de Pokéballs
+    const pokeballCounter = document.getElementById("pokeball-timer");
+    if (pokeballCounter) {
+      if (nextPokeballTime) {
+        const timeLeft = Math.max(0, Math.floor((nextPokeballTime - Date.now()) / 1000));
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        pokeballCounter.textContent = `${pokeballCount}/10 (${minutes}:${seconds.toString().padStart(2, '0')})`;
       } else {
-        timerElement.textContent = `${pokeballs} / --:--`;
+        pokeballCounter.textContent = `${pokeballCount}/10`;
       }
+    }
+
+    // Mettre à jour le compteur de Pokémon
+    const pokemonCounter = document.getElementById("pokemon-count");
+    if (pokemonCounter) {
+      pokemonCounter.textContent = pokemonCount;
+    }
+
+    // Mettre à jour le compteur d'œufs
+    const eggCounter = document.getElementById("egg-count");
+    if (eggCounter) {
+      eggCounter.textContent = eggCount;
+    }
+
+    // Mettre à jour le compteur de bonbons
+    const candyCounter = document.getElementById("candy-count");
+    if (candyCounter) {
+      candyCounter.textContent = candyCount;
     }
   }
 
