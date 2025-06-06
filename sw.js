@@ -208,4 +208,4 @@ self.addEventListener("error", (event) => {
 // Notification de mise à jour disponible
 self.addEventListener("updatefound", () => {
   console.log("[Service Worker] Mise à jour trouvée");
-});
+}); 

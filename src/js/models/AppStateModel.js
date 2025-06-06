@@ -21,45 +21,26 @@ class AppStateModel {
           photos: gameState.photos || [],
           userPokeballs: gameState.userPokeballs !== undefined ? gameState.userPokeballs : 3,
           lastPokeballTime: gameState.lastPokeballTime || Date.now(),
-          breedingCooldowns: {},
+          breedingCooldowns: gameState.breedingCooldowns || {},
           cameraStream: null,
           selectedPokemonForPhoto: null,
         };
 
-        // Charger les cooldowns depuis les Pokémon
-        console.log('Pokémons chargés:', this.data.pokemons);
-        this.data.pokemons.forEach(pokemon => {
-          console.log('Vérification du Pokémon pour cooldown:', {
-            id: pokemon.uniqueId,
-            lastBreedingTime: pokemon.lastBreedingTime
-          });
-          
-          if (pokemon.lastBreedingTime) {
-            const now = Date.now();
-            const endTime = pokemon.lastBreedingTime + this.breedingCooldownTime;
-            const timeLeft = endTime - now;
-            
-            console.log('Calcul du cooldown:', {
-              pokemonId: pokemon.uniqueId,
-              lastBreedingTime: pokemon.lastBreedingTime,
-              endTime: endTime,
-              timeLeft: Math.round(timeLeft / 1000),
-              'secondes restantes': true
-            });
-
-            if (timeLeft > 0) {
-              this.data.breedingCooldowns[pokemon.uniqueId] = {
-                lastBreedingTime: pokemon.lastBreedingTime,
-                endTime: endTime
-              };
-              console.log('Cooldown restauré pour:', {
-                pokemonId: pokemon.uniqueId,
-                timeLeft: Math.round(timeLeft / 1000),
-                'secondes': true
-              });
+        // Nettoyer les cooldowns expirés
+        const now = Date.now();
+        Object.entries(this.data.breedingCooldowns).forEach(([pokemonId, cooldown]) => {
+          if (cooldown.endTime <= now) {
+            delete this.data.breedingCooldowns[pokemonId];
+            // Supprimer aussi le lastBreedingTime du Pokémon
+            const pokemon = this.data.pokemons.find(p => p.uniqueId === pokemonId);
+            if (pokemon) {
+              delete pokemon.lastBreedingTime;
             }
           }
         });
+
+        // Sauvegarder l'état initial nettoyé
+        this.serialize();
         
       } catch (error) {
         console.error('Erreur lors du chargement de l\'état:', error);
@@ -274,6 +255,8 @@ class AppStateModel {
           count: this.data.userPokeballs,
           nextPokeballTime: this.getNextPokeballTime()
         });
+        // Sauvegarder l'état après l'incrémentation
+        this.serialize();
       }
     }
   
@@ -374,30 +357,31 @@ class AppStateModel {
     }
   
     isBreedingAvailable(pokemonId) {
-      const pokemon = this.data.pokemons.find(p => p.uniqueId === pokemonId);
+      const cooldown = this.data.breedingCooldowns[pokemonId];
       console.log('Vérification disponibilité pour:', {
         pokemonId: pokemonId,
-        found: !!pokemon,
-        lastBreedingTime: pokemon?.lastBreedingTime
+        cooldown: cooldown
       });
       
-      if (!pokemon || !pokemon.lastBreedingTime) return true;
+      if (!cooldown) return true;
       
       const now = Date.now();
-      const endTime = pokemon.lastBreedingTime + this.breedingCooldownTime;
-      const timeLeft = Math.round((endTime - now) / 1000);
+      const timeLeft = Math.round((cooldown.endTime - now) / 1000);
       
       console.log('Calcul disponibilité:', {
         pokemonId: pokemonId,
         now: now,
-        endTime: endTime,
+        endTime: cooldown.endTime,
         timeLeft: timeLeft,
         'secondes': true
       });
       
-      if (now >= endTime) {
-        delete pokemon.lastBreedingTime;
+      if (now >= cooldown.endTime) {
         delete this.data.breedingCooldowns[pokemonId];
+        const pokemon = this.data.pokemons.find(p => p.uniqueId === pokemonId);
+        if (pokemon) {
+          delete pokemon.lastBreedingTime;
+        }
         this.serialize();
         console.log('Cooldown terminé pour:', pokemonId);
         return true;
@@ -412,23 +396,25 @@ class AppStateModel {
     }
   
     getBreedingCooldownProgress(pokemonId) {
-      const pokemon = this.data.pokemons.find(p => p.uniqueId === pokemonId);
-      if (!pokemon || !pokemon.lastBreedingTime) return 100;
+      const cooldown = this.data.breedingCooldowns[pokemonId];
+      if (!cooldown) return 100;
 
       const now = Date.now();
-      const endTime = pokemon.lastBreedingTime + this.breedingCooldownTime;
       
-      if (now >= endTime) {
-        delete pokemon.lastBreedingTime;
+      if (now >= cooldown.endTime) {
         delete this.data.breedingCooldowns[pokemonId];
+        const pokemon = this.data.pokemons.find(p => p.uniqueId === pokemonId);
+        if (pokemon) {
+          delete pokemon.lastBreedingTime;
+        }
         this.serialize();
         return 100;
       }
 
-      const elapsed = now - pokemon.lastBreedingTime;
+      const elapsed = now - cooldown.lastBreedingTime;
       const progress = (elapsed / this.breedingCooldownTime) * 100;
       const result = Math.min(100, Math.max(0, progress));
-      const timeLeft = Math.round((endTime - now) / 1000);
+      const timeLeft = Math.round((cooldown.endTime - now) / 1000);
       
       console.log('Progression du cooldown:', {
         pokemonId: pokemonId,
@@ -507,12 +493,8 @@ class AppStateModel {
     }
   
     serialize() {
-      // Sauvegarder l'état complet du jeu
-      const gameState = {
-        pokemons: this.data.pokemons.map(pokemon => ({
-          ...pokemon,
-          lastBreedingTime: pokemon.lastBreedingTime || null
-        })),
+      const state = {
+        pokemons: this.data.pokemons,
         eggs: this.data.eggs,
         photos: this.data.photos,
         userPokeballs: this.data.userPokeballs,
@@ -520,8 +502,12 @@ class AppStateModel {
         breedingCooldowns: this.data.breedingCooldowns
       };
       
-      localStorage.setItem('gameState', JSON.stringify(gameState));
-      console.log('État du jeu sauvegardé:', gameState);
+      try {
+        localStorage.setItem('gameState', JSON.stringify(state));
+        console.log('État sauvegardé:', state);
+      } catch (error) {
+        console.error('Erreur lors de la sauvegarde de l\'état:', error);
+      }
     }
   
     // Méthode pour régénérer les uniqueIds pour tous les Pokemon
