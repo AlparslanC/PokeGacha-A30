@@ -1332,15 +1332,37 @@ main {
 }
 
 .breeding-cooldown-active {
-  opacity: 0.7;
   pointer-events: none;
 }
 
-.breeding-cooldown-active::after {
-  content: '⏳';
+.breeding-cooldown-active .pokemon-image,
+.breeding-cooldown-active .pokemon-name,
+.breeding-cooldown-active .pokemon-types {
+  opacity: 0.7;
+}
+
+.breeding-cooldown-timer {
   position: absolute;
-  top: 5px;
-  right: 5px;
-  font-size: 1.2rem;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 1px 4px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   z-index: 2;
+}
+
+.breeding-cooldown-timer::before {
+  content: '⏳';
+  font-size: 0.9rem;
+}
+
+.breeding-cooldown-timer-text {
+  font-size: 0.7rem;
+  color: #333;
+  font-weight: 500;
 }

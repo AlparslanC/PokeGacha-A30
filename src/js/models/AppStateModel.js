@@ -397,7 +397,7 @@ class AppStateModel {
   
     getBreedingCooldownProgress(pokemonId) {
       const cooldown = this.data.breedingCooldowns[pokemonId];
-      if (!cooldown) return 100;
+      if (!cooldown) return { progress: 100, timeLeft: 0 };
 
       const now = Date.now();
       
@@ -408,7 +408,7 @@ class AppStateModel {
           delete pokemon.lastBreedingTime;
         }
         this.serialize();
-        return 100;
+        return { progress: 100, timeLeft: 0 };
       }
 
       const elapsed = now - cooldown.lastBreedingTime;
@@ -424,7 +424,10 @@ class AppStateModel {
         'secondes': true
       });
       
-      return result;
+      return { 
+        progress: result,
+        timeLeft: timeLeft
+      };
     }
   
     // Méthodes pour la persistance

@@ -10,6 +10,13 @@ class PokemonCollectionView extends BaseView {
     this.isSelectionMode = false;
     this.selectedPokemon = new Set();
     this.currentPokemonType = null;
+    this.cooldownTimers = new Map(); // Pour stocker les intervalles de mise à jour
+  }
+
+  // Ajouter une méthode pour nettoyer les timers
+  clearCooldownTimers() {
+    this.cooldownTimers.forEach(timer => clearInterval(timer));
+    this.cooldownTimers.clear();
   }
 
   render(pokemons) {
@@ -31,6 +38,9 @@ class PokemonCollectionView extends BaseView {
     
     // Grouper les Pokémon par espèce pour compter les doublons
     const pokemonCounts = this.countPokemonBySpecies(pokemons);
+
+    // Nettoyer les anciens timers avant de recréer les cartes
+    this.clearCooldownTimers();
 
     // Ajouter les cartes Pokémon
     pokemons.forEach((pokemon) => {
@@ -85,15 +95,46 @@ class PokemonCollectionView extends BaseView {
     }
 
     // Ajouter la barre de progression de recharge d'accouplement
-    const breedingProgress = this.appStateModel.getBreedingCooldownProgress(pokemon.uniqueId);
-    if (breedingProgress < 100) {
+    const cooldownInfo = this.appStateModel.getBreedingCooldownProgress(pokemon.uniqueId);
+    if (cooldownInfo.progress < 100) {
+      const timer = this.createElement("div", "breeding-cooldown-timer");
+      const timerText = this.createElement("span", "breeding-cooldown-timer-text");
+      timer.appendChild(timerText);
+      card.appendChild(timer);
+
       const breedingCooldown = this.createElement("div", "breeding-cooldown");
-      breedingCooldown.innerHTML = `
-        <div class="breeding-cooldown-bar" style="width: ${breedingProgress}%"></div>
-        <div class="breeding-cooldown-text">Recharge: ${Math.floor(breedingProgress)}%</div>
-      `;
+      const progressBar = this.createElement("div", "breeding-cooldown-bar");
+      const progressText = this.createElement("div", "breeding-cooldown-text");
+      breedingCooldown.appendChild(progressBar);
+      breedingCooldown.appendChild(progressText);
       card.appendChild(breedingCooldown);
       card.classList.add("breeding-cooldown-active");
+
+      // Fonction de mise à jour du timer et de la barre de progression
+      const updateCooldown = () => {
+        const currentInfo = this.appStateModel.getBreedingCooldownProgress(pokemon.uniqueId);
+        if (currentInfo.progress >= 100) {
+          clearInterval(this.cooldownTimers.get(pokemon.uniqueId));
+          this.cooldownTimers.delete(pokemon.uniqueId);
+          card.classList.remove("breeding-cooldown-active");
+          timer.remove();
+          breedingCooldown.remove();
+          return;
+        }
+
+        const minutes = Math.floor(currentInfo.timeLeft / 60);
+        const seconds = currentInfo.timeLeft % 60;
+        timerText.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        progressBar.style.width = `${currentInfo.progress}%`;
+        progressText.textContent = `Recharge: ${Math.floor(currentInfo.progress)}%`;
+      };
+
+      // Initialiser le timer
+      updateCooldown();
+      
+      // Mettre à jour toutes les secondes
+      const intervalId = setInterval(updateCooldown, 1000);
+      this.cooldownTimers.set(pokemon.uniqueId, intervalId);
     }
 
     if (pokemon.isNew) {
@@ -296,5 +337,11 @@ class PokemonCollectionView extends BaseView {
 
   capitalizeFirstLetter(string) {
     return string.charAt(0).toUpperCase() + string.slice(1);
+  }
+
+  // N'oubliez pas de nettoyer les timers lors de la destruction de la vue
+  destroy() {
+    this.clearCooldownTimers();
+    super.destroy();
   }
 }
