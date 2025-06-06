@@ -42,7 +42,7 @@ class StorageModel {
         pokemons: [],
         eggs: [],
         photos: [],
-        userPokeballs: data?.userPokeballs || 10
+        userPokeballs: data?.userPokeballs !== undefined ? data.userPokeballs : 3
       };
 
       // Optimiser les Pokémon en ne gardant que les données essentielles
@@ -187,7 +187,7 @@ class StorageModel {
           pokemons: Array.isArray(parsedData.pokemons) ? parsedData.pokemons : [],
           eggs: Array.isArray(parsedData.eggs) ? parsedData.eggs : [],
           photos: Array.isArray(parsedData.photos) ? parsedData.photos : [],
-          userPokeballs: typeof parsedData.userPokeballs === 'number' ? parsedData.userPokeballs : 10
+          userPokeballs: typeof parsedData.userPokeballs === 'number' ? parsedData.userPokeballs : 3
         };
       } catch (error) {
         console.error('Erreur lors du chargement:', error);

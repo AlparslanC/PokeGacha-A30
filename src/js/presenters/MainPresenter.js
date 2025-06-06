@@ -118,6 +118,10 @@ class MainPresenter {
         // Save state before showing modal
         this.saveData();
 
+        // Désactiver le mode sélection immédiatement
+        this.pokemonCollectionView.disableSelectionMode();
+        document.querySelector(".select-duplicates-btn")?.classList.remove("active");
+
         // Show evolution success modal
         this.uiView.showRewardModal(
           "Évolution réussie !",
@@ -125,10 +129,8 @@ class MainPresenter {
           `Félicitations ! Vos ${selectedPokemons.length} ${this.capitalizeFirstLetter(firstPokemon.name)} ont évolué en ${this.capitalizeFirstLetter(evolvedPokemon.name)} !`
         );
 
-        // Reload page after a short delay
-        setTimeout(() => {
-          window.location.reload();
-        }, 2000);
+        // Rafraîchir uniquement la collection de Pokémon et les compteurs
+        this.refreshCollections({ pokemon: true, counters: true });
 
       } catch (error) {
         this.uiView.showNotification(error.message);
@@ -287,14 +289,14 @@ class MainPresenter {
       this.saveData();
     }, 30000);
 
-    // Ajouter des Pokéballs périodiquement (1 par heure)
+    // Ajouter des Pokéballs périodiquement (1 toutes les 2 heures)
     setInterval(() => {
-      if (this.appStateModel.getUserPokeballs() < 10) {
+      if (this.appStateModel.getUserPokeballs() < 5) {  // Limite maximale réduite à 5
         this.appStateModel.incrementPokeballs();
         this.uiView.showNotification("Vous avez reçu une nouvelle Pokéball !");
         this.saveData();
       }
-    }, 3600000); // 1 heure (60 * 60 * 1000 ms)
+    }, 7200000); // 2 heures (2 * 60 * 60 * 1000 ms)
   }
 
   updateEggProgress() {
@@ -474,12 +476,24 @@ class MainPresenter {
     return string.charAt(0).toUpperCase() + string.slice(1);
   }
 
-  refreshCollections() {
-    console.log("Refreshing all collections");
-    this.renderPokemonCollection();
-    this.renderEggCollection();
-    this.renderPhotoCollection();
-    this.renderCounters();
+  refreshCollections(options = { pokemon: true, eggs: true, photos: true, counters: true }) {
+    console.log("Refreshing collections with options:", options);
+    
+    if (options.pokemon) {
+      this.renderPokemonCollection();
+    }
+    
+    if (options.eggs) {
+      this.renderEggCollection();
+    }
+    
+    if (options.photos) {
+      this.renderPhotoCollection();
+    }
+    
+    if (options.counters) {
+      this.renderCounters();
+    }
   }
 
   // Observer pattern - réagir aux changements d'état
@@ -489,12 +503,21 @@ class MainPresenter {
     switch (changeType) {
       case "POKEMON_ADDED":
       case "POKEMON_REMOVED":
+        this.refreshCollections({ pokemon: true, counters: true });
+        this.saveData();
+        break;
       case "EGG_ADDED":
       case "EGG_REMOVED":
       case "EGG_UPDATED":
+        this.refreshCollections({ eggs: true, counters: true });
+        this.saveData();
+        break;
       case "PHOTO_ADDED":
+        this.refreshCollections({ photos: true });
+        this.saveData();
+        break;
       case "POKEBALLS_UPDATED":
-        this.refreshCollections();
+        this.refreshCollections({ counters: true });
         this.saveData();
         break;
       case "STATE_HYDRATED":

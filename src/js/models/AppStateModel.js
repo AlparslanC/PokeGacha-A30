@@ -17,7 +17,7 @@ class AppStateModel {
           pokemons: gameState.pokemons || [],
           eggs: gameState.eggs || [],
           photos: gameState.photos || [],
-          userPokeballs: gameState.userPokeballs || 10,
+          userPokeballs: gameState.userPokeballs !== undefined ? gameState.userPokeballs : 3,
           breedingCooldowns: {},
           cameraStream: null,
           selectedPokemonForPhoto: null,
@@ -64,7 +64,7 @@ class AppStateModel {
           pokemons: [],
           eggs: [],
           photos: [],
-          userPokeballs: 10,
+          userPokeballs: 3,
           breedingCooldowns: {},
           cameraStream: null,
           selectedPokemonForPhoto: null,
@@ -505,23 +505,12 @@ class AppStateModel {
         })),
         eggs: this.data.eggs,
         photos: this.data.photos,
-        userPokeballs: this.data.userPokeballs
+        userPokeballs: this.data.userPokeballs,
+        breedingCooldowns: this.data.breedingCooldowns
       };
       
-      try {
-        const serializedState = JSON.stringify(gameState);
-        localStorage.setItem('gameState', serializedState);
-        
-        console.log('État sauvegardé:', {
-          pokemonCount: gameState.pokemons.length,
-          withCooldowns: gameState.pokemons.filter(p => p.lastBreedingTime).length,
-          state: serializedState
-        });
-      } catch (error) {
-        console.error('Erreur lors de la sauvegarde de l\'état:', error);
-      }
-      
-      return gameState;
+      localStorage.setItem('gameState', JSON.stringify(gameState));
+      console.log('État du jeu sauvegardé:', gameState);
     }
   
     // Méthode pour régénérer les uniqueIds pour tous les Pokemon
