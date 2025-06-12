@@ -12,8 +12,13 @@ class EggModel {
       const hatchTime = Math.floor(
         Math.random() * (this.MAX_HATCH_TIME - this.MIN_HATCH_TIME + 1) + this.MIN_HATCH_TIME
       );
-      console.log("Creating new egg at:", now, "with hatch time:", hatchTime);
+      
+      // Générer un ID unique pour l'œuf
+      const uniqueId = `egg_${now}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      console.log("Creating new egg at:", now, "with hatch time:", hatchTime, "uniqueId:", uniqueId);
       return {
+        uniqueId: uniqueId,
         createdAt: now,
         lastShake: now,
         progress: 0,

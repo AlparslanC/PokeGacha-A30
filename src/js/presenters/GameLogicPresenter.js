@@ -21,33 +21,13 @@ class GameLogicPresenter {
   }
 
   loadBreedingCooldowns() {
-    try {
-      const savedCooldowns = localStorage.getItem('breedingCooldowns');
-      if (savedCooldowns) {
-        const cooldowns = JSON.parse(savedCooldowns);
-        // Nettoyer les cooldowns expirés
-        const now = Date.now();
-        const validCooldowns = {};
-        for (const [pokemonId, endTime] of Object.entries(cooldowns)) {
-          if (endTime > now) {
-            validCooldowns[pokemonId] = endTime;
-          }
-        }
-        // Mettre à jour le localStorage avec les cooldowns valides
-        localStorage.setItem('breedingCooldowns', JSON.stringify(validCooldowns));
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des cooldowns:', error);
-      localStorage.removeItem('breedingCooldowns');
-    }
+    // Utiliser la méthode du modèle pour charger les cooldowns
+    this.appStateModel.loadBreedingCooldowns();
   }
 
   saveBreedingCooldowns(cooldowns) {
-    try {
-      localStorage.setItem('breedingCooldowns', JSON.stringify(cooldowns));
-    } catch (error) {
-      console.error('Erreur lors de la sauvegarde des cooldowns:', error);
-    }
+    // Utiliser la méthode du modèle pour sauvegarder les cooldowns
+    this.appStateModel.saveBreedingCooldowns();
   }
 
   updateBreedingCooldown(pokemonId, duration = 300000) { // 5 minutes en millisecondes

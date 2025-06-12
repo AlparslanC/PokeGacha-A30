@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- Fond circulaire -->
+  <circle cx="12" cy="12" r="11" fill="#fff" stroke="#f44336" stroke-width="1" />
+  
+  <!-- Icône WiFi -->
+  <g fill="none" stroke="#f44336">
+    <!-- Ondes WiFi -->
+    <path d="M7.5 14.5C8.5 13.5 10.2 12.5 12 12.5c1.8 0 3.5 1 4.5 2" stroke-width="1.5" />
+    <path d="M5.5 12.5C7 11 9.5 10 12 10c2.5 0 5 1 6.5 2.5" stroke-width="1.5" />
+    <path d="M3.5 10.5C5.5 8.5 8.7 7 12 7c3.3 0 6.5 1.5 8.5 3.5" stroke-width="1.5" />
+    
+    <!-- Point central -->
+    <circle cx="12" cy="17" r="1" stroke-width="1.5" fill="#f44336" />
+  </g>
+  
+  <!-- Ligne diagonale (slash) -->
+  <line x1="4" y1="4" x2="20" y2="20" stroke="#f44336" stroke-width="2" />
+</svg> 
