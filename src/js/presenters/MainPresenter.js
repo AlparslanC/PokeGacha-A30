@@ -6,6 +6,7 @@ class MainPresenter {
     this.eggModel = new EggModel();
     this.storageModel = new StorageModel();
     this.shopModel = new ShopModel(this.appStateModel, this.pokemonModel);
+    this.battleModel = new BattleModel(this.appStateModel);
 
     this.uiView = new UIView();
     this.pokemonCollectionView = new PokemonCollectionView(
@@ -32,6 +33,13 @@ class MainPresenter {
     this.gameLogicPresenter.setMainPresenter(this);
     
     this.photoPresenter = new PhotoPresenter(this.appStateModel, this.uiView);
+    
+    // Initialiser le présentateur de combat
+    this.battlePresenter = new BattlePresenter(
+      this.appStateModel,
+      this.battleModel,
+      this.uiView
+    );
 
     this.init();
 
@@ -226,11 +234,16 @@ class MainPresenter {
               this.appStateModel.removePokemon(id);
             });
             
-            // Ajouter les bonbons (1 par Pokémon)
-            this.appStateModel.incrementCandyCount(selectedIds.length);
+            // Ajouter les bonbons (entre 1-4 par Pokémon aléatoirement)
+            let totalCandies = 0;
+            selectedIds.forEach(() => {
+              const candyReward = Math.floor(Math.random() * 4) + 1; // Génère un nombre entre 1 et 4
+              totalCandies += candyReward;
+            });
+            this.appStateModel.incrementCandyCount(totalCandies);
 
             // Afficher un message de confirmation
-            this.uiView.showNotification(`${selectedIds.length} Pokémon ont été recyclés. Vous avez reçu ${selectedIds.length} bonbon${selectedIds.length > 1 ? 's' : ''} !`);
+            this.uiView.showNotification(`${selectedIds.length} Pokémon ont été recyclés. Vous avez reçu ${totalCandies} bonbon${totalCandies > 1 ? 's' : ''} !`);
 
             // Rafraîchir l'affichage
             this.refreshCollections({ pokemon: true, counters: true });
@@ -288,6 +301,9 @@ class MainPresenter {
         this.uiView.showNotification(error.message);
       }
     });
+
+    // Initialiser la vue de bataille
+    this.battlePresenter.init(document.getElementById("battle-container"));
   }
 
   setupEvents() {
@@ -753,7 +769,7 @@ class MainPresenter {
     const candyReward = selectedPokemons.length;
     rewardDiv.innerHTML = `
       <img src="images/super-bonbon.png" alt="Super Bonbon">
-      <span>Vous recevrez ${candyReward} bonbon${candyReward > 1 ? 's' : ''}</span>
+      <span>Vous recevrez entre ${selectedPokemons.length} et ${selectedPokemons.length * 4} bonbons aléatoirement (1-4 par Pokémon)</span>
     `;
 
     // Mettre à jour le gestionnaire du bouton de suppression

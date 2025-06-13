@@ -15,6 +15,7 @@ class AppStateModel {
         // Charger l'état général du jeu
         const gameState = savedState ? JSON.parse(savedState) : {};
         console.log('État parsé:', gameState);
+        console.log('candyCount chargé:', gameState.candyCount);
         
         // S'assurer que lastPokeballTime soit un timestamp valide
         const storedLastPokeballTime = gameState.lastPokeballTime ? Number(gameState.lastPokeballTime) : null;
@@ -75,7 +76,7 @@ class AppStateModel {
           userPokeballs: gameState.userPokeballs !== undefined ? gameState.userPokeballs : (isFirstVisit ? 5 : 0),
           lastPokeballTime: validLastPokeballTime,
           breedingCooldowns: processedBreedingCooldowns,
-          candyCount: gameState.candyCount || 0,
+          candyCount: gameState.candyCount !== undefined ? gameState.candyCount : 0,
           cameraStream: null,
           selectedPokemonForPhoto: null,
         };
@@ -109,7 +110,10 @@ class AppStateModel {
         // Charger également les cooldowns du localStorage dédié 
         // (les valeurs de ce dernier prendront priorité)
         this.loadBreedingCooldowns();
-
+        
+        // Charger les bonbons depuis le stockage dédié (priorité sur gameState)
+        this.loadCandyCount();
+        
         // Sauvegarder l'état initial nettoyé
         this.serialize();
         
@@ -916,12 +920,15 @@ class AppStateModel {
           photos: data.photos || [],
           userPokeballs: data.userPokeballs || 0,
           lastPokeballTime: data.lastPokeballTime || Date.now(),
-          candyCount: data.candyCount || 0,
+          candyCount: data.candyCount !== undefined ? data.candyCount : 0,
           breedingCooldowns: mergedBreedingCooldowns
         };
 
         // S'assurer que tout est synchronisé
         this.loadBreedingCooldowns();
+        
+        // Charger les bonbons depuis le stockage dédié (priorité sur gameState)
+        this.loadCandyCount();
         
         // Vérifier les cooldowns et les lastBreedingTime après tout le processus
         console.log('État final après hydratation:');
@@ -961,7 +968,11 @@ class AppStateModel {
         candyCount: this.data.candyCount
       };
       
+      console.log('Sauvegarde de l\'état: candyCount =', this.data.candyCount);
       localStorage.setItem('gameState', JSON.stringify(serializedData));
+      
+      // Sauvegarder les bonbons directement
+      this.saveCandyCount();
       
       // S'assurer que les cooldowns sont également sauvegardés dans le localStorage dédié
       this.saveBreedingCooldowns();
@@ -1051,17 +1062,79 @@ class AppStateModel {
     }
 
     incrementCandyCount(amount) {
-      this.data.candyCount += amount;
+      // Assure-toi que amount est un nombre
+      const amountToAdd = Number(amount) || 0;
+      if (amountToAdd <= 0) return;
+      
+      // Assure-toi que candyCount est défini
+      if (this.data.candyCount === undefined) {
+        this.data.candyCount = 0;
+      }
+      
+      this.data.candyCount += amountToAdd;
+      console.log(`Bonbons incrémentés de ${amountToAdd}, nouveau total: ${this.data.candyCount}`);
       this.notifyObservers("CANDY_UPDATED");
+      
+      // Sauvegarder directement dans le localStorage
+      this.saveCandyCount();
+      
+      // Sauvegarder également l'état complet
+      this.serialize();
     }
 
     decrementCandyCount(amount) {
-      if (this.data.candyCount >= amount) {
-        this.data.candyCount -= amount;
+      // Assure-toi que amount est un nombre
+      const amountToRemove = Number(amount) || 0;
+      if (amountToRemove <= 0) return true;
+      
+      // Assure-toi que candyCount est défini
+      if (this.data.candyCount === undefined) {
+        this.data.candyCount = 0;
+        return false;
+      }
+      
+      if (this.data.candyCount >= amountToRemove) {
+        this.data.candyCount -= amountToRemove;
+        console.log(`Bonbons décrémentés de ${amountToRemove}, nouveau total: ${this.data.candyCount}`);
         this.notifyObservers("CANDY_UPDATED");
+        
+        // Sauvegarder directement dans le localStorage
+        this.saveCandyCount();
+        
+        // Sauvegarder également l'état complet
+        this.serialize();
         return true;
       }
       return false;
+    }
+
+    // Méthode pour sauvegarder uniquement le nombre de bonbons
+    saveCandyCount() {
+      try {
+        localStorage.setItem('pokemon-candy-count', String(this.data.candyCount));
+        console.log(`Bonbons sauvegardés directement: ${this.data.candyCount}`);
+      } catch (error) {
+        console.error('Erreur lors de la sauvegarde directe des bonbons:', error);
+      }
+    }
+
+    // Méthode pour charger uniquement le nombre de bonbons
+    loadCandyCount() {
+      try {
+        const savedCandyCount = localStorage.getItem('pokemon-candy-count');
+        if (savedCandyCount !== null) {
+          const parsedCount = Number(savedCandyCount);
+          if (!isNaN(parsedCount)) {
+            this.data.candyCount = parsedCount;
+            console.log(`Bonbons chargés directement: ${this.data.candyCount}`);
+            return true;
+          }
+        }
+        return false;
+      } catch (error) {
+        console.error('Erreur lors du chargement direct des bonbons:', error);
+        return false;
+      }
     }
 
     getPokemonById(uniqueId) {

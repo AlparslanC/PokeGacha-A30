@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Fond -->
+  <rect width="200" height="200" fill="#3498db" rx="10" ry="10" />
+  
+  <!-- Soleil/Étoile au centre -->
+  <circle cx="100" cy="100" r="50" fill="#f1c40f" />
+  <circle cx="100" cy="100" r="40" fill="#f39c12" />
+  
+  <!-- Rayons du soleil/étoile -->
+  <polygon points="100,30 105,50 95,50" fill="#f1c40f" />
+  <polygon points="100,170 105,150 95,150" fill="#f1c40f" />
+  <polygon points="30,100 50,105 50,95" fill="#f1c40f" />
+  <polygon points="170,100 150,105 150,95" fill="#f1c40f" />
+  <polygon points="50,50 65,65 35,35" fill="#f1c40f" />
+  <polygon points="150,150 135,135 165,165" fill="#f1c40f" />
+  <polygon points="50,150 65,135 35,165" fill="#f1c40f" />
+  <polygon points="150,50 135,65 165,35" fill="#f1c40f" />
+  
+  <!-- Trophée au centre -->
+  <rect x="90" y="90" width="20" height="30" fill="#e74c3c" rx="3" ry="3" />
+  <rect x="85" y="80" width="30" height="10" fill="#c0392b" rx="3" ry="3" />
+  <rect x="95" y="120" width="10" height="5" fill="#e67e22" />
+  <ellipse cx="100" cy="125" rx="15" ry="5" fill="#e67e22" />
+  
+  <!-- Nombre du jour -->
+  <circle cx="150" cy="40" r="20" fill="#e74c3c" />
+  <text x="150" y="48" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#fff" text-anchor="middle">1</text>
+</svg> 

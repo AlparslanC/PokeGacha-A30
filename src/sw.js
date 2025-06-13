@@ -133,6 +133,7 @@ self.addEventListener("fetch", (event) => {
             return new Response("Ressource non disponible hors ligne", {
               status: 503,
               statusText: "Service Unavailable",
+              headers: { 'Content-Type': 'text/plain' }
             });
           });
       })
@@ -180,17 +181,65 @@ self.addEventListener("fetch", (event) => {
   // Pour toutes les autres requêtes, utiliser la stratégie par défaut
   else {
     event.respondWith(
-      caches.match(event.request).then((response) => {
-        return response || fetch(event.request).catch(() => {
-          // Si la requête échoue (hors ligne), retourner une page d'erreur
-          if (event.request.mode === 'navigate') {
-            return caches.match('/index.html');
-          }
-          return new Response("Ressource non disponible hors ligne", {
-            status: 503,
-            statusText: "Service Unavailable",
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        
+        return fetch(event.request)
+          .then(networkResponse => {
+            return networkResponse;
+          })
+          .catch(() => {
+            // Si la requête échoue (hors ligne), retourner une page d'erreur
+            if (event.request.mode === 'navigate') {
+              return caches.match('/index.html')
+                .then(response => {
+                  if (response) {
+                    return response;
+                  }
+                  
+                  // Créer une page HTML minimale avec le contenu de ConnectivityView
+                  const offlineHtml = `
+                    <!DOCTYPE html>
+                    <html lang="fr">
+                    <head>
+                      <meta charset="UTF-8" />
+                      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+                      <title>PokéGacha - Hors ligne</title>
+                      <link rel="stylesheet" href="css/style.css" />
+                    </head>
+                    <body>
+                      <div class="offline-overlay" style="display: flex;">
+                        <div class="offline-message">
+                          <img src="images/no-connection.svg" alt="Pas de connexion" class="offline-icon">
+                          <h2>Vous n'êtes pas connecté à internet</h2>
+                          <p>Vérifiez votre connexion et réessayez</p>
+                          <button id="retry-connection" class="action-button">Réessayer</button>
+                        </div>
+                      </div>
+                      <script>
+                        document.getElementById('retry-connection').addEventListener('click', () => {
+                          window.location.reload();
+                        });
+                      </script>
+                    </body>
+                    </html>
+                  `;
+                  
+                  return new Response(offlineHtml, {
+                    status: 200,
+                    headers: { 'Content-Type': 'text/html' }
+                  });
+                });
+            }
+            
+            return new Response("Pas de connexion", {
+              status: 503,
+              statusText: "Service Unavailable",
+              headers: { 'Content-Type': 'text/plain' }
+            });
           });
-        });
       })
     );
   }

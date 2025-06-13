@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Fond -->
+  <rect width="200" height="200" fill="#81ecec" rx="10" ry="10" />
+  
+  <!-- Route/chemin -->
+  <rect x="0" y="140" width="200" height="60" fill="#636e72" />
+  <rect x="0" y="130" width="200" height="10" fill="#dfe6e9" />
+  
+  <!-- Lignes sur la route -->
+  <rect x="20" y="165" width="30" height="10" fill="#dfe6e9" />
+  <rect x="80" y="165" width="30" height="10" fill="#dfe6e9" />
+  <rect x="140" y="165" width="30" height="10" fill="#dfe6e9" />
+  
+  <!-- Silhouette qui court -->
+  <!-- Tête -->
+  <circle cx="80" cy="80" r="15" fill="#2d3436" />
+  
+  <!-- Corps -->
+  <line x1="80" y1="95" x2="80" y2="120" stroke="#2d3436" stroke-width="5" />
+  
+  <!-- Jambes en mouvement de course -->
+  <line x1="80" y1="120" x2="65" y2="140" stroke="#2d3436" stroke-width="5" />
+  <line x1="80" y1="120" x2="95" y2="135" stroke="#2d3436" stroke-width="5" />
+  
+  <!-- Bras en mouvement de course -->
+  <line x1="80" y1="105" x2="60" y2="115" stroke="#2d3436" stroke-width="5" />
+  <line x1="80" y1="105" x2="95" y2="95" stroke="#2d3436" stroke-width="5" />
+  
+  <!-- Nuage de poussière -->
+  <ellipse cx="50" cy="130" rx="15" ry="10" fill="#b2bec3" opacity="0.7" />
+  <ellipse cx="40" cy="125" rx="10" ry="8" fill="#b2bec3" opacity="0.7" />
+  <ellipse cx="30" cy="130" rx="8" ry="6" fill="#b2bec3" opacity="0.7" />
+  
+  <!-- Lignes de vitesse -->
+  <line x1="120" y1="70" x2="180" y2="70" stroke="#2d3436" stroke-width="2" />
+  <line x1="130" y1="90" x2="190" y2="90" stroke="#2d3436" stroke-width="2" />
+  <line x1="125" y1="110" x2="185" y2="110" stroke="#2d3436" stroke-width="2" />
+  
+  <!-- Texte -->
+  <text x="100" y="40" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#2d3436" text-anchor="middle">FUITE RÉUSSIE!</text>
+</svg> 

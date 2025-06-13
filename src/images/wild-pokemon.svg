@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Fond de la scène -->
+  <rect width="200" height="200" fill="#78C850" rx="10" ry="10" />
+  
+  <!-- Herbe -->
+  <path d="M0,180 Q50,160 100,180 Q150,160 200,180 L200,200 L0,200 Z" fill="#4CAF50" />
+  
+  <!-- Silhouette du Pokémon -->
+  <circle cx="100" cy="100" r="40" fill="#333" />
+  <circle cx="100" cy="100" r="35" fill="#555" />
+  <circle cx="100" cy="100" r="30" fill="#666" />
+  
+  <!-- Yeux du Pokémon -->
+  <circle cx="85" cy="90" r="5" fill="#ff3333" />
+  <circle cx="115" cy="90" r="5" fill="#ff3333" />
+  
+  <!-- Point d'interrogation au-dessus -->
+  <text x="95" y="40" font-family="Arial, sans-serif" font-size="40" font-weight="bold" fill="#fff">?</text>
+</svg> 

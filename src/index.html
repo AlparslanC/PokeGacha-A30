@@ -7,6 +7,7 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <title>PokéGacha</title>
     <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/battle.css" />
     <link rel="manifest" href="manifest.json" />
     <link rel="apple-touch-icon" href="images/icon-192x192.png" />
     <link rel="icon" href="images/icon-192x192.png" />
@@ -42,6 +43,7 @@
         <div class="tab" data-tab="eggs">Œufs</div>
         <div class="tab" data-tab="photos">Photos</div>
         <div class="tab" data-tab="shop">Boutique</div>
+        <div class="tab" data-tab="battle">Arène</div>
       </div>
 
       <div id="catch" class="tab-content active">
@@ -99,6 +101,10 @@
       <div id="shop" class="tab-content">
         <div id="shop-container"></div>
       </div>
+
+      <div id="battle" class="tab-content">
+        <div id="battle-container"></div>
+      </div>
     </main>
 
     <div id="pokemon-modal" class="modal">
@@ -122,6 +128,7 @@
     <script src="js/models/EggModel.js"></script>
     <script src="js/models/StorageModel.js"></script>
     <script src="js/models/ShopModel.js"></script>
+    <script src="js/models/BattleModel.js"></script>
 
     <!-- Views -->
     <script src="js/views/BaseView.js"></script>
@@ -131,10 +138,12 @@
     <script src="js/views/UIView.js"></script>
     <script src="js/views/ShopView.js"></script>
     <script src="js/views/ConnectivityView.js"></script>
+    <script src="js/views/BattleView.js"></script>
 
     <!-- Presenters -->
     <script src="js/presenters/GameLogicPresenter.js"></script>
     <script src="js/presenters/PhotoPresenter.js"></script>
+    <script src="js/presenters/BattlePresenter.js"></script>
     <script src="js/presenters/MainPresenter.js"></script>
 
     <!-- Services -->
