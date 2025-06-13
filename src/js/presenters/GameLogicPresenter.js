@@ -116,7 +116,7 @@ class GameLogicPresenter {
         // Pour un œuf d'accouplement, on récupère les données du Pokémon parent
         pokemon = await this.pokemonModel.fetchPokemonById(egg.parentPokemon.id);
         pokemon.uniqueId = `${pokemon.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        pokemon.isShiny = Math.random() < 1/4096; // Taux officiel de shiny (1/4096)
+        pokemon.isShiny = Math.random() < 1/512; // Taux amélioré de shiny pour les œufs d'accouplement (1/512)
       } else {
         // Pour un œuf normal, on obtient un Pokémon aléatoire
         pokemon = await this.pokemonModel.fetchRandomPokemon();
