@@ -7,6 +7,7 @@ class PokemonCollectionView extends BaseView {
     this.onPokemonClick = null;
     this.onEvolutionSelect = null;
     this.onBreedingSelect = null;
+    this.onDeleteSelect = null;  // Nouveau callback pour la suppression
     this.isSelectionMode = false;
     this.selectedPokemon = new Set();
     this.currentPokemonType = null;
@@ -66,29 +67,75 @@ class PokemonCollectionView extends BaseView {
     const controls = this.createElement("div", "evolution-controls");
     
     // Bouton de sélection des doublons
-    const selectButton = this.createElement("button", "select-duplicates-btn", "Sélectionner les doublons");
-    this.bindEvent(selectButton, "click", () => this.toggleSelectionMode(selectButton));
+    const selectButton = this.createElement("button", "select-duplicates-btn", "sélectionner pokemon");
+    selectButton.addEventListener("click", () => {
+      console.log("Bouton de sélection cliqué");
+      this.toggleSelectionMode(selectButton);
+    });
     
     // Bouton d'évolution
     const evolveButton = this.createElement("button", "evolve-btn", "Faire évoluer");
-    this.bindEvent(evolveButton, "click", () => this.evolveSelected());
+    evolveButton.addEventListener("click", (e) => {
+      console.log("Bouton évolution cliqué");
+      if (evolveButton.classList.contains("active")) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.evolveSelected();
+      } else {
+        console.log("Bouton évolution non actif");
+      }
+    });
 
     // Bouton d'accouplement
     const breedButton = this.createElement("button", "breed-btn", "Accoupler");
-    this.bindEvent(breedButton, "click", () => this.breedSelected());
+    breedButton.addEventListener("click", (e) => {
+      console.log("Bouton accouplement cliqué");
+      if (breedButton.classList.contains("active")) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.breedSelected();
+      } else {
+        console.log("Bouton accouplement non actif");
+      }
+    });
+
+    // Bouton de suppression
+    const deleteButton = this.createElement("button", "delete-btn", "Recycler");
+    deleteButton.addEventListener("click", (e) => {
+      console.log("Bouton suppression cliqué");
+      if (deleteButton.classList.contains("active")) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.deleteSelected();
+      } else {
+        console.log("Bouton suppression non actif");
+      }
+    });
     
     controls.appendChild(selectButton);
     controls.appendChild(evolveButton);
     controls.appendChild(breedButton);
+    controls.appendChild(deleteButton);
     
     return controls;
   }
 
   createPokemonCard(pokemon, pokemonCounts) {
     const card = this.createElement("div", "pokemon-card");
+    
+    // Vérifier que le Pokémon a un uniqueId valide
+    if (!pokemon.uniqueId) {
+      console.error("Pokémon sans uniqueId:", pokemon);
+      // Générer un ID temporaire si nécessaire
+      pokemon.uniqueId = `${pokemon.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+    
+    // Ajouter les attributs data pour l'identification
     card.dataset.id = pokemon.uniqueId;
     card.dataset.name = pokemon.name;
     card.dataset.speciesId = pokemon.id;
+    
+    console.log(`Création carte pour ${pokemon.name} avec uniqueId: ${pokemon.uniqueId}`);
 
     if (pokemon.isShiny) {
       card.classList.add("shiny");
@@ -207,7 +254,7 @@ class PokemonCollectionView extends BaseView {
       button.textContent = "Annuler la sélection";
       this.enableSelectionMode();
     } else {
-      button.textContent = "Sélectionner les doublons";
+      button.textContent = "sélectionner pokemon";
       this.disableSelectionMode();
     }
   }
@@ -228,14 +275,7 @@ class PokemonCollectionView extends BaseView {
     // Second pass: mark selectable cards
     cards.forEach(card => {
       if (!card.classList.contains("shiny")) {
-        const pokemonName = card.dataset.name;
-        const count = duplicateCount.get(pokemonName) || 0;
-        
-        if (count > 1) {
-          card.classList.add("selectable");
-        } else {
-          card.classList.add("not-selectable");
-        }
+        card.classList.add("selectable");
       } else {
         card.classList.add("not-selectable");
       }
@@ -265,17 +305,18 @@ class PokemonCollectionView extends BaseView {
 
   togglePokemonSelection(card, pokemon) {
     if (!card.classList.contains("selectable")) {
+      console.log(`Pokémon non sélectionnable: ${pokemon.name}`);
       return;
     }
     
-    if (this.currentPokemonType && pokemon.name !== this.currentPokemonType) {
-      this.selectedPokemon.clear();
-      this.container.querySelectorAll(".pokemon-card.selected").forEach(card => {
-        card.classList.remove("selected");
+    // Vérifier que le Pokémon a un uniqueId valide
+    if (!pokemon.uniqueId || !card.dataset.id) {
+      console.error("Pokémon ou carte sans uniqueId valide:", {
+        pokemonName: pokemon.name,
+        pokemonId: pokemon.uniqueId,
+        cardId: card.dataset.id
       });
-      this.currentPokemonType = pokemon.name;
-    } else if (!this.currentPokemonType) {
-      this.currentPokemonType = pokemon.name;
+      return;
     }
     
     const pokemonId = card.dataset.id;
@@ -283,28 +324,132 @@ class PokemonCollectionView extends BaseView {
     if (card.classList.contains("selected")) {
       card.classList.remove("selected");
       this.selectedPokemon.delete(pokemonId);
+      console.log(`Pokémon désélectionné: ${pokemon.name} (${pokemonId})`);
     } else {
       card.classList.add("selected");
       this.selectedPokemon.add(pokemonId);
+      console.log(`Pokémon sélectionné: ${pokemon.name} (${pokemonId})`);
     }
     
-    this.updateEvolutionButton();
+    console.log(`Nombre total de Pokémon sélectionnés: ${this.selectedPokemon.size}`);
+    console.log(`Pokémon sélectionnés:`, Array.from(this.selectedPokemon));
+    
+    // Forcer une mise à jour directe des boutons d'action
+    setTimeout(() => {
+      this.updateActionButtons();
+      console.log("Mise à jour forcée des boutons d'action");
+    }, 0);
   }
 
   updateEvolutionButton() {
+    // Appeler directement updateActionButtons
     this.updateActionButtons();
+    console.log("updateEvolutionButton -> updateActionButtons");
   }
 
   updateActionButtons() {
     const evolveButton = document.querySelector(".evolve-btn");
     const breedButton = document.querySelector(".breed-btn");
+    const deleteButton = document.querySelector(".delete-btn");
+    
+    // Ajouter des logs pour déboguer
+    console.log("Mise à jour des boutons d'action:");
+    console.log("- Pokémon sélectionnés:", this.selectedPokemon.size);
+    console.log("- Bouton évoluer trouvé:", !!evolveButton);
+    console.log("- Bouton accoupler trouvé:", !!breedButton);
+    console.log("- Bouton recycler trouvé:", !!deleteButton);
     
     if (evolveButton) {
-      evolveButton.classList.toggle("active", this.selectedPokemon.size >= 2);
+      const isActive = this.selectedPokemon.size >= 2;
+      console.log("- Bouton évoluer actif:", isActive);
+      
+      // Réinitialiser complètement les styles et classes
+      evolveButton.className = "evolve-btn";
+      evolveButton.style.pointerEvents = "none";
+      evolveButton.style.opacity = "0.6";
+      evolveButton.style.cursor = "default";
+      
+      // Supprimer tous les gestionnaires d'événements existants
+      const newEvolveButton = evolveButton.cloneNode(true);
+      newEvolveButton.textContent = "Faire évoluer";
+      evolveButton.parentNode.replaceChild(newEvolveButton, evolveButton);
+      
+      if (isActive) {
+        newEvolveButton.classList.add("active");
+        newEvolveButton.style.pointerEvents = "auto";
+        newEvolveButton.style.opacity = "1";
+        newEvolveButton.style.cursor = "pointer";
+        
+        // Ajouter un nouveau gestionnaire d'événements
+        newEvolveButton.addEventListener("click", (e) => {
+          console.log("Bouton évoluer cliqué!");
+          e.preventDefault();
+          e.stopPropagation();
+          this.evolveSelected();
+        });
+      }
     }
     
     if (breedButton) {
-      breedButton.classList.toggle("active", this.selectedPokemon.size === 2);
+      const isActive = this.selectedPokemon.size === 2;
+      console.log("- Bouton accoupler actif:", isActive);
+      
+      // Réinitialiser complètement les styles et classes
+      breedButton.className = "breed-btn";
+      breedButton.style.pointerEvents = "none";
+      breedButton.style.opacity = "0.6";
+      breedButton.style.cursor = "default";
+      
+      // Supprimer tous les gestionnaires d'événements existants
+      const newBreedButton = breedButton.cloneNode(true);
+      newBreedButton.textContent = "Accoupler";
+      breedButton.parentNode.replaceChild(newBreedButton, breedButton);
+      
+      if (isActive) {
+        newBreedButton.classList.add("active");
+        newBreedButton.style.pointerEvents = "auto";
+        newBreedButton.style.opacity = "1";
+        newBreedButton.style.cursor = "pointer";
+        
+        // Ajouter un nouveau gestionnaire d'événements
+        newBreedButton.addEventListener("click", (e) => {
+          console.log("Bouton accoupler cliqué!");
+          e.preventDefault();
+          e.stopPropagation();
+          this.breedSelected();
+        });
+      }
+    }
+
+    if (deleteButton) {
+      const isActive = this.selectedPokemon.size > 0;
+      console.log("- Bouton recycler actif:", isActive);
+      
+      // Réinitialiser complètement les styles et classes
+      deleteButton.className = "delete-btn";
+      deleteButton.style.pointerEvents = "none";
+      deleteButton.style.opacity = "0.6";
+      deleteButton.style.cursor = "default";
+      
+      // Supprimer tous les gestionnaires d'événements existants
+      const newDeleteButton = deleteButton.cloneNode(true);
+      newDeleteButton.textContent = "Recycler";
+      deleteButton.parentNode.replaceChild(newDeleteButton, deleteButton);
+      
+      if (isActive) {
+        newDeleteButton.classList.add("active");
+        newDeleteButton.style.pointerEvents = "auto";
+        newDeleteButton.style.opacity = "1";
+        newDeleteButton.style.cursor = "pointer";
+        
+        // Ajouter un nouveau gestionnaire d'événements
+        newDeleteButton.addEventListener("click", (e) => {
+          console.log("Bouton recycler cliqué!");
+          e.preventDefault();
+          e.stopPropagation();
+          this.deleteSelected();
+        });
+      }
     }
   }
 
@@ -323,6 +468,14 @@ class PokemonCollectionView extends BaseView {
     }
   }
 
+  deleteSelected() {
+    if (this.selectedPokemon.size > 0 && this.onDeleteSelect) {
+      this.onDeleteSelect(Array.from(this.selectedPokemon));
+      this.disableSelectionMode();
+      document.querySelector(".select-duplicates-btn")?.classList.remove("active");
+    }
+  }
+
   setOnPokemonClick(callback) {
     this.onPokemonClick = callback;
   }
@@ -333,6 +486,10 @@ class PokemonCollectionView extends BaseView {
 
   setOnBreedingSelect(callback) {
     this.onBreedingSelect = callback;
+  }
+
+  setOnDeleteSelect(callback) {
+    this.onDeleteSelect = callback;
   }
 
   capitalizeFirstLetter(string) {

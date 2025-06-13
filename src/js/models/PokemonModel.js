@@ -132,6 +132,10 @@ class PokemonModel {
         name: evolvedPokemon.name,
         url: `https://pokeapi.co/api/v2/pokemon-species/${evolvedPokemonId}/`
       };
+      
+      // Générer un uniqueId pour le Pokémon évolué
+      evolvedPokemon.uniqueId = `${evolvedPokemon.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      console.log(`Pokémon évolué ${evolvedPokemon.name} avec uniqueId: ${evolvedPokemon.uniqueId}`);
 
       return evolvedPokemon;
     } catch (error) {

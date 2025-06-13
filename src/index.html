@@ -16,19 +16,21 @@
     <header>
       <h1>PokéGacha</h1>
       <div class="stats">
-        <div class="stat-item">
-          <img src="images/pokeball.png" alt="Pokéballs" class="stat-icon" />
-          <div class="pokeball-stat">
-            <span id="pokeball-timer" class="stat-number"></span>
-          </div>
+        <div class="stat-item pokeball-stat">
+          <img src="images/pokeball.png" alt="Pokéball" class="stat-icon">
+          <span id="pokeball-timer" class="stat-number">5</span>
         </div>
         <div class="stat-item">
           <img src="images/pokemon-icon.png" alt="Pokémon" class="stat-icon" />
           <span id="pokemon-count" class="stat-number">0</span>
         </div>
         <div class="stat-item">
-          <img src="images/egg.png" alt="Œufs" class="stat-icon" />
+          <img src="images/egg.png" alt="Œuf" class="stat-icon">
           <span id="egg-count" class="stat-number">0</span>
+        </div>
+        <div class="stat-item">
+          <img src="images/super-bonbon.png" alt="Bonbon" class="stat-icon">
+          <span id="candy-count" class="stat-number">0</span>
         </div>
       </div>
     </header>
@@ -39,6 +41,7 @@
         <div class="tab" data-tab="collection">Collection</div>
         <div class="tab" data-tab="eggs">Œufs</div>
         <div class="tab" data-tab="photos">Photos</div>
+        <div class="tab" data-tab="shop">Boutique</div>
       </div>
 
       <div id="catch" class="tab-content active">
@@ -92,6 +95,10 @@
         </div>
         <div id="photos-list" class="photos-gallery"></div>
       </div>
+
+      <div id="shop" class="tab-content">
+        <div id="shop-container"></div>
+      </div>
     </main>
 
     <div id="pokemon-modal" class="modal">
@@ -114,6 +121,7 @@
     <script src="js/models/PokemonModel.js"></script>
     <script src="js/models/EggModel.js"></script>
     <script src="js/models/StorageModel.js"></script>
+    <script src="js/models/ShopModel.js"></script>
 
     <!-- Views -->
     <script src="js/views/BaseView.js"></script>
@@ -121,6 +129,8 @@
     <script src="js/views/EggCollectionView.js"></script>
     <script src="js/views/PhotoCollectionView.js"></script>
     <script src="js/views/UIView.js"></script>
+    <script src="js/views/ShopView.js"></script>
+    <script src="js/views/ConnectivityView.js"></script>
 
     <!-- Presenters -->
     <script src="js/presenters/GameLogicPresenter.js"></script>
@@ -129,6 +139,7 @@
 
     <!-- Services -->
     <script src="js/services/ServiceWorkerService.js"></script>
+    <script src="js/services/ConnectivityService.js"></script>
 
     <!-- Application -->
     <script src="js/Application.js"></script>
