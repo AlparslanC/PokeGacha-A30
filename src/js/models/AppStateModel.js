@@ -2,8 +2,8 @@
 class AppStateModel {
     constructor() {
       // Initialiser les cooldowns avant tout
-      this.breedingCooldownTime = 1800000; // 30 minutes en millisecondes
-      this.pokeballRechargeTime = 1800000; // 30 minutes en millisecondes (30 * 60 * 1000)
+      this.breedingCooldownTime = 300000; // 5 minutes en millisecondes (5 * 60 * 1000)
+      this.pokeballRechargeTime = 10; // 1 minute en millisecondes (1 * 60 * 1000)
       this.maxPokeballs = 10;
 
       // Charger l'état du jeu
@@ -46,6 +46,10 @@ class AppStateModel {
           }
         });
 
+        // Charger également les cooldowns du localStorage dédié 
+        // (les valeurs de ce dernier prendront priorité)
+        this.loadBreedingCooldowns();
+
         // Sauvegarder l'état initial nettoyé
         this.serialize();
         
@@ -67,6 +71,9 @@ class AppStateModel {
         if (isFirstVisit) {
           localStorage.setItem('hasVisited', 'true');
         }
+        
+        // Même en cas d'erreur, essayer de charger les cooldowns
+        this.loadBreedingCooldowns();
       }
       
       this.observers = [];
@@ -298,39 +305,140 @@ class AppStateModel {
       try {
         const now = Date.now();
         const savedCooldowns = JSON.parse(localStorage.getItem('breedingCooldowns')) || {};
+        console.log('Cooldowns chargés depuis localStorage:', savedCooldowns);
         
-        // Nettoyer les cooldowns expirés
-        this.data.breedingCooldowns = Object.entries(savedCooldowns).reduce((acc, [id, endTime]) => {
-          if (endTime > now) {
-            acc[id] = endTime;
+        // Convertir les timestamps en objets de cooldown complets
+        const convertedCooldowns = {};
+        
+        // 1. D'abord, traiter les cooldowns stockés dans le localStorage dédié
+        Object.entries(savedCooldowns).forEach(([id, endTime]) => {
+          // Vérifier si l'ID du Pokémon existe toujours dans la collection
+          const pokemon = this.data.pokemons.find(p => p.uniqueId === id);
+          
+          if (pokemon && endTime > now) {
+            const lastBreedingTime = endTime - this.breedingCooldownTime;
+            convertedCooldowns[id] = {
+              lastBreedingTime: lastBreedingTime,
+              endTime: endTime
+            };
+            
+            // Mettre à jour aussi lastBreedingTime sur le Pokémon
+            pokemon.lastBreedingTime = lastBreedingTime;
+            
+            console.log('Cooldown chargé depuis localStorage:', {
+              pokemonId: id,
+              pokemonName: pokemon.name,
+              timeLeft: Math.round((endTime - now) / 1000),
+              'secondes': true
+            });
+          } else if (endTime <= now) {
+            // Si le cooldown est expiré, le supprimer du localStorage
+            console.log(`Cooldown expiré supprimé pour ${id}`);
+            delete savedCooldowns[id];
+            
+            // Si le Pokémon existe, supprimer aussi son lastBreedingTime
+            if (pokemon) {
+              delete pokemon.lastBreedingTime;
+            }
+          } else {
+            console.log(`Pokémon non trouvé pour le cooldown ${id}, cooldown ignoré`);
           }
-          return acc;
-        }, {});
+        });
         
-        // Sauvegarder les cooldowns nettoyés
-        this.saveBreedingCooldowns();
+        // 2. Ensuite, vérifier si des Pokémon ont des lastBreedingTime mais pas de cooldown
+        this.data.pokemons.forEach(pokemon => {
+          if (pokemon.lastBreedingTime && !convertedCooldowns[pokemon.uniqueId]) {
+            const endTime = pokemon.lastBreedingTime + this.breedingCooldownTime;
+            
+            // Vérifier si le cooldown n'est pas expiré
+            if (endTime > now) {
+              convertedCooldowns[pokemon.uniqueId] = {
+                lastBreedingTime: pokemon.lastBreedingTime,
+                endTime: endTime
+              };
+              
+              console.log('Cooldown restauré depuis Pokémon:', {
+                pokemonId: pokemon.uniqueId,
+                pokemonName: pokemon.name,
+                timeLeft: Math.round((endTime - now) / 1000),
+                'secondes': true
+              });
+            } else {
+              // Si le cooldown est expiré, supprimer lastBreedingTime du Pokémon
+              delete pokemon.lastBreedingTime;
+              console.log(`Cooldown expiré supprimé pour ${pokemon.name} (${pokemon.uniqueId})`);
+            }
+          }
+        });
         
-        console.log('Cooldowns chargés:', this.data.breedingCooldowns);
+        // Mettre à jour les cooldowns dans l'état principal
+        this.data.breedingCooldowns = convertedCooldowns;
+        
+        // Sauvegarder les modifications dans le localStorage si des cooldowns ont été supprimés
+        if (Object.keys(savedCooldowns).length > 0) {
+          localStorage.setItem('breedingCooldowns', JSON.stringify(savedCooldowns));
+        }
+        
+        // Afficher les cooldowns actifs après chargement
+        if (Object.keys(convertedCooldowns).length > 0) {
+          console.log('Cooldowns actifs après chargement:');
+          Object.entries(convertedCooldowns).forEach(([id, cooldown]) => {
+            const pokemon = this.data.pokemons.find(p => p.uniqueId === id);
+            if (pokemon) {
+              console.log(`- ${pokemon.name} (${id}): ${Math.round((cooldown.endTime - now) / 1000)}s restantes`);
+            }
+          });
+        } else {
+          console.log('Aucun cooldown actif après chargement');
+        }
+        
+        // Notifier les observateurs que les cooldowns ont été mis à jour
+        this.notifyObservers('BREEDING_COOLDOWNS_UPDATED', this.data.breedingCooldowns);
       } catch (error) {
         console.error('Erreur lors du chargement des cooldowns:', error);
-        this.data.breedingCooldowns = {};
-        localStorage.removeItem('breedingCooldowns');
       }
     }
   
     saveBreedingCooldowns() {
       try {
-        // S'assurer que tous les timestamps sont des nombres
-        const cleanCooldowns = Object.entries(this.data.breedingCooldowns).reduce((acc, [id, time]) => {
-          acc[id] = parseInt(time);
+        // Ne sauvegarder que si des cooldowns existent
+        if (!this.data.breedingCooldowns || Object.keys(this.data.breedingCooldowns).length === 0) {
+          console.log('Aucun cooldown à sauvegarder');
+          return;
+        }
+
+        // Extraire les endTime des cooldowns pour le localStorage dédié
+        const cleanCooldowns = Object.entries(this.data.breedingCooldowns).reduce((acc, [id, cooldown]) => {
+          // Vérifier si le Pokémon existe toujours
+          const pokemon = this.data.pokemons.find(p => p.uniqueId === id);
+          if (pokemon && cooldown && cooldown.endTime) {
+            // Ne sauvegarder que les cooldowns valides
+            acc[id] = cooldown.endTime;
+            
+            // S'assurer que le Pokémon a aussi lastBreedingTime
+            if (!pokemon.lastBreedingTime) {
+              pokemon.lastBreedingTime = cooldown.lastBreedingTime;
+            }
+            
+            console.log(`Sauvegarde du cooldown pour ${pokemon.name} (${id}): ${Math.round((cooldown.endTime - Date.now()) / 1000)}s restantes`);
+          }
           return acc;
         }, {});
         
-        const cooldowns = JSON.stringify(cleanCooldowns);
-        localStorage.setItem('breedingCooldowns', cooldowns);
-        console.log('Cooldowns sauvegardés:', cleanCooldowns);
+        // Ne sauvegarder que si nous avons des cooldowns valides
+        if (Object.keys(cleanCooldowns).length > 0) {
+          const cooldownsJson = JSON.stringify(cleanCooldowns);
+          localStorage.setItem('breedingCooldowns', cooldownsJson);
+          console.log('Cooldowns sauvegardés dans localStorage:', cleanCooldowns);
+          
+          // Sauvegarder aussi dans l'état principal
+          localStorage.setItem('gameState', JSON.stringify(this.data));
+        } else {
+          console.log('Aucun cooldown valide à sauvegarder');
+        }
       } catch (error) {
         console.error('Erreur lors de la sauvegarde des cooldowns:', error);
+        // Ne pas effacer les cooldowns en cas d'erreur
       }
     }
   
@@ -361,6 +469,9 @@ class AppStateModel {
         
         // Sauvegarder immédiatement l'état
         this.serialize();
+        
+        // Sauvegarder également dans le localStorage dédié aux cooldowns
+        this.saveBreedingCooldowns();
         
         this.notifyObservers('BREEDING_COOLDOWN_STARTED', {
           pokemonId: pokemonId,
@@ -399,6 +510,7 @@ class AppStateModel {
           delete pokemon.lastBreedingTime;
         }
         this.serialize();
+        this.saveBreedingCooldowns();
         console.log('Cooldown terminé pour:', pokemonId);
         return true;
       }
@@ -424,6 +536,7 @@ class AppStateModel {
           delete pokemon.lastBreedingTime;
         }
         this.serialize();
+        this.saveBreedingCooldowns();
         return { progress: 100, timeLeft: 0 };
       }
 
@@ -466,10 +579,15 @@ class AppStateModel {
           };
           console.log('Pokémon traité:', {
             id: processed.uniqueId,
+            name: processed.name,
             lastBreedingTime: processed.lastBreedingTime
           });
           return processed;
         });
+
+        // Sauvegarder les cooldowns existants avant de les remplacer
+        const existingCooldowns = { ...this.data.breedingCooldowns };
+        console.log('Cooldowns existants avant hydratation:', existingCooldowns);
 
         this.data = {
           ...this.data,
@@ -477,32 +595,42 @@ class AppStateModel {
           eggs: processedEggs,
           photos: data.photos || [],
           userPokeballs: data.userPokeballs || 0,
-          breedingCooldowns: {}
+          lastPokeballTime: data.lastPokeballTime || Date.now(),
+          candyCount: data.candyCount || 0,
+          // Récupérer les cooldowns depuis les données chargées
+          breedingCooldowns: data.breedingCooldowns || {}
         };
 
-        // Reconstruire les cooldowns à partir des timestamps des Pokémon
-        this.data.pokemons.forEach(pokemon => {
-          if (pokemon.lastBreedingTime) {
-            const now = Date.now();
-            const endTime = pokemon.lastBreedingTime + this.breedingCooldownTime;
-            if (now < endTime) {
-              this.data.breedingCooldowns[pokemon.uniqueId] = {
-                lastBreedingTime: pokemon.lastBreedingTime,
-                endTime: endTime
-              };
-              console.log('Cooldown restauré:', {
-                pokemonId: pokemon.uniqueId,
-                timeLeft: Math.round((endTime - now) / 1000),
-                'secondes': true
-              });
+        // Si les cooldowns existants sont vides, reconstruire les cooldowns à partir des timestamps des Pokémon
+        if (Object.keys(this.data.breedingCooldowns).length === 0) {
+          console.log('Reconstruire les cooldowns à partir des lastBreedingTime des Pokémon');
+          this.data.pokemons.forEach(pokemon => {
+            if (pokemon.lastBreedingTime) {
+              const now = Date.now();
+              const endTime = pokemon.lastBreedingTime + this.breedingCooldownTime;
+              if (now < endTime) {
+                this.data.breedingCooldowns[pokemon.uniqueId] = {
+                  lastBreedingTime: pokemon.lastBreedingTime,
+                  endTime: endTime
+                };
+                console.log('Cooldown restauré depuis Pokémon:', {
+                  pokemonId: pokemon.uniqueId,
+                  pokemonName: pokemon.name,
+                  timeLeft: Math.round((endTime - now) / 1000),
+                  'secondes': true
+                });
+              }
             }
-          }
-        });
+          });
+        }
         
         console.log('État hydraté:', {
           pokemonCount: this.data.pokemons.length,
           withCooldowns: Object.keys(this.data.breedingCooldowns).length
         });
+        
+        // Recharger aussi les cooldowns depuis le localStorage dédié (cela prendra priorité)
+        this.loadBreedingCooldowns();
         
         this.notifyObservers('STATE_HYDRATED', {
           data: this.data,
@@ -523,6 +651,10 @@ class AppStateModel {
       };
       
       localStorage.setItem('gameState', JSON.stringify(serializedData));
+      
+      // S'assurer que les cooldowns sont également sauvegardés dans le localStorage dédié
+      this.saveBreedingCooldowns();
+      
       return serializedData;
     }
   
@@ -542,20 +674,53 @@ class AppStateModel {
       const now = Date.now();
       let hasChanges = false;
       
-      Object.entries(this.data.breedingCooldowns).forEach(([pokemonId, endTime]) => {
-        if (endTime <= now) {
+      // Vérifier si breedingCooldowns existe
+      if (!this.data.breedingCooldowns) {
+        this.data.breedingCooldowns = {};
+        return false;
+      }
+      
+      Object.entries(this.data.breedingCooldowns).forEach(([pokemonId, cooldown]) => {
+        // Vérifier si le cooldown est valide
+        if (!cooldown || !cooldown.endTime) {
           delete this.data.breedingCooldowns[pokemonId];
           hasChanges = true;
-          console.log(`Cooldown expiré supprimé pour ${pokemonId}`);
+          console.log(`Cooldown invalide supprimé pour ${pokemonId}`);
+          return;
+        }
+        
+        if (cooldown.endTime <= now) {
+          // Supprimer le cooldown
+          delete this.data.breedingCooldowns[pokemonId];
+          
+          // Supprimer également lastBreedingTime du Pokémon
+          const pokemon = this.data.pokemons.find(p => p.uniqueId === pokemonId);
+          if (pokemon) {
+            delete pokemon.lastBreedingTime;
+            console.log(`Cooldown expiré supprimé pour ${pokemon.name} (${pokemonId})`);
+          } else {
+            console.log(`Pokémon non trouvé pour le cooldown expiré ${pokemonId}`);
+          }
+          
+          hasChanges = true;
         } else {
-          const timeLeft = Math.round((endTime - now) / 1000);
+          const timeLeft = Math.round((cooldown.endTime - now) / 1000);
           console.log(`Cooldown actif pour ${pokemonId}: ${timeLeft} secondes restantes`);
         }
       });
       
       if (hasChanges) {
+        // Sauvegarder l'état du jeu
         this.serialize();
+        
+        // Sauvegarder également dans le localStorage dédié aux cooldowns
+        this.saveBreedingCooldowns();
+        
+        // Notifier les observateurs que les cooldowns ont changé
+        this.notifyObservers('BREEDING_COOLDOWNS_UPDATED', this.data.breedingCooldowns);
       }
+      
+      return hasChanges;
     }
 
     getNextPokeballTime() {
