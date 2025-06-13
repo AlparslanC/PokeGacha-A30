@@ -2,7 +2,7 @@
   "name": "PokéGacha",
   "short_name": "PokéGacha",
   "description": "Gacha Pokémon pour le web",
-  "start_url": "/",
+  "start_url": "https://alparslanc.emf-informatique.ch/pokemongacha/src/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#f44336",
@@ -15,9 +15,9 @@
   ],
   "orientation": "portrait",
   "prefer_related_applications": false,
-  "scope": "/",
+  "scope": "https://alparslanc.emf-informatique.ch/pokemongacha/src/",
   "serviceworker": {
     "src": "sw.js",
-    "scope": "/"
+    "scope": "https://alparslanc.emf-informatique.ch/pokemongacha/src/"
   }
 }
