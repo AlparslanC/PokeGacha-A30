@@ -63,10 +63,7 @@ class MainPresenter {
     const savedData = this.storageModel.load();
     if (savedData) {
       this.appStateModel.hydrate(savedData);
-      // After loading, ensure all Pokemon have unique IDs
-      const count = this.appStateModel.regenerateUniqueIds();
-      console.log(`Regenerated unique IDs for ${count} Pokemon`);
-      // Save the updated data
+      // Ne pas régénérer les IDs uniques des Pokémon pour conserver les cooldowns
       this.saveData();
     }
   }
@@ -110,6 +107,12 @@ class MainPresenter {
         
         if (!evolvedPokemon) {
           throw new Error("Ce Pokémon ne peut pas évoluer davantage");
+        }
+        
+        // S'assurer que le Pokémon évolué a un uniqueId
+        if (!evolvedPokemon.uniqueId) {
+          console.log("Génération d'un uniqueId pour le Pokémon évolué:", evolvedPokemon.name);
+          evolvedPokemon.uniqueId = `${evolvedPokemon.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         }
 
         // Remove selected Pokemon
@@ -227,7 +230,7 @@ class MainPresenter {
             this.appStateModel.incrementCandyCount(selectedIds.length);
 
             // Afficher un message de confirmation
-            this.uiView.showNotification(`${selectedIds.length} Pokémon ont été supprimés. Vous avez reçu ${selectedIds.length} bonbon${selectedIds.length > 1 ? 's' : ''} !`);
+            this.uiView.showNotification(`${selectedIds.length} Pokémon ont été recyclés. Vous avez reçu ${selectedIds.length} bonbon${selectedIds.length > 1 ? 's' : ''} !`);
 
             // Rafraîchir l'affichage
             this.refreshCollections({ pokemon: true, counters: true });
@@ -373,6 +376,29 @@ class MainPresenter {
     setInterval(() => {
       this.saveData();
     }, 30000);
+
+    // Vérifier et nettoyer les cooldowns d'accouplement expirés (toutes les 5 secondes)
+    setInterval(() => {
+      const hadChanges = this.appStateModel.cleanExpiredCooldowns();
+      // Mettre à jour uniquement les cooldowns sans recharger toute la collection
+      if (hadChanges) {
+        const pokemonCards = document.querySelectorAll('.pokemon-card');
+        pokemonCards.forEach(card => {
+          const pokemonId = card.dataset.id;
+          if (pokemonId) {
+            const cooldownInfo = this.appStateModel.getBreedingCooldownProgress(pokemonId);
+            if (cooldownInfo.progress >= 100) {
+              // Retirer les éléments de cooldown si le cooldown est terminé
+              card.classList.remove('breeding-cooldown-active');
+              const timer = card.querySelector('.breeding-cooldown-timer');
+              const cooldownBar = card.querySelector('.breeding-cooldown');
+              if (timer) timer.remove();
+              if (cooldownBar) cooldownBar.remove();
+            }
+          }
+        });
+      }
+    }, 5000);
 
     // Ajouter des Pokéballs périodiquement (1 toutes les 30 minutes)
     setInterval(() => {
@@ -617,6 +643,11 @@ class MainPresenter {
         this.renderShop();
         this.saveData();
         break;
+      case "BREEDING_COOLDOWN_STARTED":
+      case "BREEDING_COOLDOWNS_UPDATED":
+        this.refreshCollections({ pokemon: true });
+        this.saveData();
+        break;
       case "STATE_HYDRATED":
         this.refreshCollections();
         break;
@@ -672,13 +703,13 @@ class MainPresenter {
     modal.id = 'confirm-modal';
     modal.innerHTML = `
       <div class="confirm-content">
-        <h2 class="confirm-title">Confirmer la suppression</h2>
+        <h2 class="confirm-title">Confirmer le recyclage</h2>
         <div class="confirm-message"></div>
         <div class="confirm-pokemon-list"></div>
         <div class="confirm-reward"></div>
         <div class="confirm-buttons">
           <button class="confirm-cancel">Annuler</button>
-          <button class="confirm-delete">Supprimer</button>
+          <button class="confirm-delete">Recycler</button>
         </div>
       </div>
     `;
@@ -703,7 +734,7 @@ class MainPresenter {
     const deleteBtn = modal.querySelector('.confirm-delete');
 
     // Mettre à jour le contenu
-    messageDiv.textContent = `Vous êtes sur le point de supprimer ${selectedPokemons.length} Pokémon.`;
+    messageDiv.textContent = `Vous êtes sur le point de recycler ${selectedPokemons.length} Pokémon.`;
 
     // Afficher la liste des Pokémon
     listDiv.innerHTML = selectedPokemons.map(pokemon => `

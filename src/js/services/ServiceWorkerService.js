@@ -3,7 +3,7 @@ class ServiceWorkerService {
   static init() {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
-        .register("/pokemongacha/sw.js")
+        .register("sw.js")
         .then((registration) => {
           console.log("Service Worker enregistré avec succès:", registration);
         })

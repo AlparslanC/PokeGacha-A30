@@ -1,28 +1,36 @@
 // sw.js - Service Worker pour le cache et le fonctionnement hors ligne
 
-const CACHE_NAME = "pokégacha-cache-v2";
+const CACHE_NAME = "pokégacha-cache-v3";
 const ASSETS_TO_CACHE = [
-  "https://alparslanc.emf-informatique.ch/pokemongacha/src/",
-  "https://alparslanc.emf-informatique.ch/pokemongacha/src/index.html",
-  "https://alparslanc.emf-informatique.ch/pokemongacha/src/css/style.css",
-  "https://alparslanc.emf-informatique.ch/pokemongacha/src/js/Application.js",
-  "https://alparslanc.emf-informatique.ch/pokemongacha/src/js/models/AppStateModel.js",
-  "https://alparslanc.emf-informatique.ch/pokemongacha/src/js/models/PokemonModel.js",
-  "https://alparslanc.emf-informatique.ch/pokemongacha/src/js/models/EggModel.js",
-  "https://alparslanc.emf-informatique.ch/pokemongacha/src/js/models/StorageModel.js",
-  "https://alparslanc.emf-informatique.ch/pokemongacha/src/js/views/BaseView.js",
-  "https://alparslanc.emf-informatique.ch/pokemongacha/src/js/views/PokemonCollectionView.js",
-  "https://alparslanc.emf-informatique.ch/pokemongacha/src/js/views/EggCollectionView.js",
-  "https://alparslanc.emf-informatique.ch/pokemongacha/src/js/views/PhotoCollectionView.js",
-  "https://alparslanc.emf-informatique.ch/pokemongacha/src/js/views/UIView.js",
-  "https://alparslanc.emf-informatique.ch/pokemongacha/src/js/presenters/MainPresenter.js",
-  "https://alparslanc.emf-informatique.ch/pokemongacha/src/js/presenters/GameLogicPresenter.js",
-  "https://alparslanc.emf-informatique.ch/pokemongacha/src/js/presenters/PhotoPresenter.js",
-  "https://alparslanc.emf-informatique.ch/pokemongacha/src/js/services/ServiceWorkerService.js",
-  "https://alparslanc.emf-informatique.ch/pokemongacha/src/images/egg.png",
-  "https://alparslanc.emf-informatique.ch/pokemongacha/src/images/pokeball.png",
-  "https://alparslanc.emf-informatique.ch/pokemongacha/src/images/pokeball.gif",
-  "https://alparslanc.emf-informatique.ch/pokemongacha/src/images/icon-192x192.png",
+  "/",
+  "/index.html",
+  "/css/style.css",
+  "/js/Application.js",
+  "/js/models/AppStateModel.js",
+  "/js/models/PokemonModel.js",
+  "/js/models/EggModel.js",
+  "/js/models/StorageModel.js",
+  "/js/models/ShopModel.js",
+  "/js/views/BaseView.js",
+  "/js/views/PokemonCollectionView.js",
+  "/js/views/EggCollectionView.js",
+  "/js/views/PhotoCollectionView.js",
+  "/js/views/UIView.js",
+  "/js/views/ShopView.js",
+  "/js/views/ConnectivityView.js",
+  "/js/presenters/MainPresenter.js",
+  "/js/presenters/GameLogicPresenter.js",
+  "/js/presenters/PhotoPresenter.js",
+  "/js/services/ServiceWorkerService.js",
+  "/js/services/ConnectivityService.js",
+  "/images/egg.png",
+  "/images/pokeball.png",
+  "/images/pokeball.gif",
+  "/images/icon-192x192.png",
+  "/images/no-connection.svg",
+  "/images/pokemon-icon.png",
+  "/images/super-bonbon.png",
+  "/manifest.json"
 ];
 
 // Installation du service worker
@@ -83,7 +91,8 @@ self.addEventListener("fetch", (event) => {
     event.request.url.includes("/css/") ||
     event.request.url.includes("/js/") ||
     event.request.url.includes("/images/") ||
-    event.request.url.endsWith(".html")
+    event.request.url.endsWith(".html") ||
+    event.request.url.endsWith(".json")
   ) {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
@@ -172,7 +181,16 @@ self.addEventListener("fetch", (event) => {
   else {
     event.respondWith(
       caches.match(event.request).then((response) => {
-        return response || fetch(event.request);
+        return response || fetch(event.request).catch(() => {
+          // Si la requête échoue (hors ligne), retourner une page d'erreur
+          if (event.request.mode === 'navigate') {
+            return caches.match('/index.html');
+          }
+          return new Response("Ressource non disponible hors ligne", {
+            status: 503,
+            statusText: "Service Unavailable",
+          });
+        });
       })
     );
   }
