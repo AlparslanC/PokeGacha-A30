@@ -50,7 +50,7 @@ class ShopView extends BaseView {
       <h3>Pokémon Shiny Aléatoire</h3>
       <p class="shop-item-price">
         <img src="images/super-bonbon.png" alt="Super Bonbon" class="shop-icon-small">
-        10 000 bonbons
+        1 000 bonbons
       </p>
     `;
     const buyShinyBtn = this.createElement("button", "shop-buy-btn", "Acheter");

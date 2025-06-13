@@ -41,6 +41,11 @@ class GameLogicPresenter {
     }
 
     this.appStateModel.decrementPokeballs();
+    // Save the game state immediately after using a Pokeball
+    if (this.mainPresenter) {
+      this.mainPresenter.saveData();
+    }
+    
     this.uiView.animatePokeball();
     this.uiView.showLoader();
 

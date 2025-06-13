@@ -42,7 +42,9 @@ class StorageModel {
         pokemons: [],
         eggs: [],
         photos: [],
-        userPokeballs: data?.userPokeballs !== undefined ? data.userPokeballs : 5
+        userPokeballs: data?.userPokeballs !== undefined ? data.userPokeballs : 5,
+        lastPokeballTime: data?.lastPokeballTime || Date.now(),
+        breedingCooldowns: data?.breedingCooldowns || {}
       };
 
       // Optimiser les Pokémon en ne gardant que les données essentielles
@@ -66,6 +68,7 @@ class StorageModel {
               // Structure sécurisée du Pokémon
               return {
                 id: pokemon.id || 0,
+                uniqueId: pokemon.uniqueId || `${pokemon.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                 name: pokemon.name || 'unknown',
                 height: pokemon.height || 0,
                 weight: pokemon.weight || 0,
@@ -84,7 +87,12 @@ class StorageModel {
                 },
                 isShiny: Boolean(pokemon.isShiny),
                 allTypes: allTypes,
-                mainType: mainType
+                mainType: mainType,
+                // IMPORTANT: Préserver lastBreedingTime s'il existe
+                lastBreedingTime: pokemon.lastBreedingTime || null,
+                // Préserver les autres propriétés importantes
+                isNew: pokemon.isNew || false,
+                addedAt: pokemon.addedAt || Date.now()
               };
             } catch (error) {
               console.error('Erreur lors de l\'optimisation du Pokémon:', pokemon, error);
@@ -145,6 +153,10 @@ class StorageModel {
           console.warn(`Attention: ${data.pokemons?.length} pokémons attendus, ${serializedData.pokemons?.length} sauvegardés`);
         }
 
+        // S'assurer que lastPokeballTime est correctement sauvegardé
+        serializedData.lastPokeballTime = data.lastPokeballTime || Date.now();
+        serializedData.breedingCooldowns = data.breedingCooldowns || {};
+
         const dataString = JSON.stringify(serializedData);
 
         try {
@@ -182,12 +194,26 @@ class StorageModel {
           return null;
         }
 
+        // Charger aussi les cooldowns de breeding depuis localStorage
+        let breedingCooldowns = {};
+        try {
+          const savedBreedingCooldowns = localStorage.getItem('breedingCooldowns');
+          if (savedBreedingCooldowns) {
+            breedingCooldowns = JSON.parse(savedBreedingCooldowns) || {};
+            console.log('Breeding cooldowns chargés depuis localStorage:', breedingCooldowns);
+          }
+        } catch (e) {
+          console.error('Erreur lors du chargement des breeding cooldowns:', e);
+        }
+
         // Nettoyage et validation des données
         return {
           pokemons: Array.isArray(parsedData.pokemons) ? parsedData.pokemons : [],
           eggs: Array.isArray(parsedData.eggs) ? parsedData.eggs : [],
           photos: Array.isArray(parsedData.photos) ? parsedData.photos : [],
-          userPokeballs: typeof parsedData.userPokeballs === 'number' ? parsedData.userPokeballs : 5
+          userPokeballs: typeof parsedData.userPokeballs === 'number' ? parsedData.userPokeballs : 5,
+          lastPokeballTime: parsedData.lastPokeballTime || Date.now(),
+          breedingCooldowns: parsedData.breedingCooldowns || breedingCooldowns || {}
         };
       } catch (error) {
         console.error('Erreur lors du chargement:', error);

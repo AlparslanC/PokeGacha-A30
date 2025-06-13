@@ -1,8 +1,8 @@
 // models/EggModel.js - Modèle pour la gestion des œufs
 class EggModel {
     constructor() {
-      this.MIN_HATCH_TIME = 600000; // 10 minutes en millisecondes
-      this.MAX_HATCH_TIME = 1800000; // 30 minutes en millisecondes
+      this.MIN_HATCH_TIME = 300000; // 5 minutes en millisecondes
+      this.MAX_HATCH_TIME = 900000; // 15 minutes en millisecondes
       this.SHAKE_REDUCTION = 60000; // Chaque secouement réduit de 60 secondes le temps d'éclosion
     }
   

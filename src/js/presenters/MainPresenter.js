@@ -377,6 +377,11 @@ class MainPresenter {
       this.saveData();
     }, 30000);
 
+    // Synchroniser les cooldowns de breeding toutes les 5 secondes
+    setInterval(() => {
+      this.synchronizeBreedingCooldowns();
+    }, 5000);
+
     // Vérifier et nettoyer les cooldowns d'accouplement expirés (toutes les 5 secondes)
     setInterval(() => {
       const hadChanges = this.appStateModel.cleanExpiredCooldowns();
@@ -759,5 +764,102 @@ class MainPresenter {
 
     // Afficher la modal
     modal.classList.add('active');
+  }
+
+  // Nouvelle méthode pour synchroniser les cooldowns de breeding
+  synchronizeBreedingCooldowns() {
+    try {
+      // 1. Charger les cooldowns depuis le localStorage dédié
+      const cooldownsStr = localStorage.getItem('breedingCooldowns');
+      if (!cooldownsStr) return;
+      
+      const cooldowns = JSON.parse(cooldownsStr);
+      if (!cooldowns || typeof cooldowns !== 'object') return;
+      
+      const now = Date.now();
+      let hasChanges = false;
+      
+      // 2. Pour chaque cooldown, vérifier si le Pokémon correspondant existe
+      Object.entries(cooldowns).forEach(([pokemonId, endTime]) => {
+        const pokemon = this.appStateModel.getPokemonById(pokemonId);
+        if (!pokemon) {
+          // Si le Pokémon n'existe pas, supprimer le cooldown
+          delete cooldowns[pokemonId];
+          hasChanges = true;
+          console.log(`Synchronisation: Suppression du cooldown pour Pokémon inexistant ${pokemonId}`);
+          return;
+        }
+        
+        // Vérifier si le cooldown est expiré
+        if (endTime <= now) {
+          // Supprimer le cooldown et lastBreedingTime
+          delete cooldowns[pokemonId];
+          delete pokemon.lastBreedingTime;
+          if (this.appStateModel.data.breedingCooldowns[pokemonId]) {
+            delete this.appStateModel.data.breedingCooldowns[pokemonId];
+          }
+          hasChanges = true;
+          console.log(`Synchronisation: Cooldown expiré supprimé pour ${pokemon.name}`);
+          return;
+        }
+        
+        // Si le cooldown est valide, s'assurer que lastBreedingTime est défini sur le Pokémon
+        const expectedLastBreedingTime = endTime - this.appStateModel.breedingCooldownTime;
+        if (!pokemon.lastBreedingTime || pokemon.lastBreedingTime !== expectedLastBreedingTime) {
+          pokemon.lastBreedingTime = expectedLastBreedingTime;
+          hasChanges = true;
+          console.log(`Synchronisation: lastBreedingTime mis à jour pour ${pokemon.name}`);
+        }
+        
+        // S'assurer que le cooldown est également dans l'objet breedingCooldowns
+        if (!this.appStateModel.data.breedingCooldowns[pokemonId]) {
+          this.appStateModel.data.breedingCooldowns[pokemonId] = {
+            lastBreedingTime: expectedLastBreedingTime,
+            endTime: endTime
+          };
+          hasChanges = true;
+          console.log(`Synchronisation: Cooldown ajouté à l'objet breedingCooldowns pour ${pokemon.name}`);
+        }
+      });
+      
+      // 3. Pour chaque Pokémon avec lastBreedingTime, vérifier si le cooldown existe
+      this.appStateModel.data.pokemons.forEach(pokemon => {
+        const pokemonId = pokemon.uniqueId;
+        if (pokemon.lastBreedingTime && !cooldowns[pokemonId]) {
+          const endTime = pokemon.lastBreedingTime + this.appStateModel.breedingCooldownTime;
+          
+          if (endTime > now) {
+            // Ajouter le cooldown
+            cooldowns[pokemonId] = endTime;
+            
+            // S'assurer que le cooldown est également dans l'objet breedingCooldowns
+            if (!this.appStateModel.data.breedingCooldowns[pokemonId]) {
+              this.appStateModel.data.breedingCooldowns[pokemonId] = {
+                lastBreedingTime: pokemon.lastBreedingTime,
+                endTime: endTime
+              };
+            }
+            
+            hasChanges = true;
+            console.log(`Synchronisation: Cooldown ajouté depuis Pokemon.lastBreedingTime pour ${pokemon.name}`);
+          } else {
+            // Si le cooldown est expiré, supprimer lastBreedingTime
+            delete pokemon.lastBreedingTime;
+            hasChanges = true;
+            console.log(`Synchronisation: lastBreedingTime expiré supprimé pour ${pokemon.name}`);
+          }
+        }
+      });
+      
+      // 4. Si des changements ont été effectués, sauvegarder
+      if (hasChanges) {
+        localStorage.setItem('breedingCooldowns', JSON.stringify(cooldowns));
+        this.saveData();
+        console.log('Synchronisation des cooldowns: changements sauvegardés');
+      }
+      
+    } catch (error) {
+      console.error('Erreur lors de la synchronisation des cooldowns:', error);
+    }
   }
 }

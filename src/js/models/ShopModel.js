@@ -19,7 +19,7 @@ class ShopModel {
   }
 
   async buyShinyPokemon() {
-    const cost = 10000;
+    const cost = 1000;
     if (this.appStateModel.getCandyCount() >= cost) {
       try {
         // Obtenir un Pokémon aléatoire
